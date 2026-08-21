@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import json
 import re
+import io
 
 # Standard ISO 14644-1:2015 limits in particles per m3
 # For ISO 5 (Standard Cleanroom): 0.5um: 3,520,000 | 1um: 832,000 | 5um: 29,300
@@ -44,6 +45,8 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
     """
     if isinstance(file_source, pd.DataFrame):
         df = file_source.copy()
+    elif isinstance(file_source, bytes):
+        df = pd.read_excel(io.BytesIO(file_source))
     else:
         df = pd.read_excel(file_source)
 

@@ -66,7 +66,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Sidebar setup
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/BCS_Automotive_Interface_Solutions_Logo.svg/512px-BCS_Automotive_Interface_Solutions_Logo.svg.png", use_container_width=True)
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/BCS_Automotive_Interface_Solutions_Logo.svg/512px-BCS_Automotive_Interface_Solutions_Logo.svg.png")
 st.sidebar.title("🔬 Monitoreo Cuarto Limpio")
 st.sidebar.markdown("---")
 
