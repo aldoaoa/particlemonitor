@@ -501,7 +501,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
             
             const mapVisualHtml = hasImage ? `
                 <div class="relative w-full overflow-hidden border-2 border-gray-400 rounded-lg shadow-inner flex items-center justify-center bg-gray-100" style="aspect-ratio: ${{mapData.width}} / ${{mapData.height}};">
-                    <img src="data:image/png;base64,${{mapData.image_b64}}" class="w-full h-full object-contain block" alt="Plano ${{roomName}}">
+                    <img src="data:image/png;base64,${{mapData.image_b64}}" class="w-full h-full object-contain block pointer-events-none select-none" draggable="false" alt="Plano ${{roomName}}">
                     <div id="pinsLayer-${{roomIdx}}" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
                 </div>
             ` : `
@@ -994,28 +994,39 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
 
         function makeDraggable(element) {{
             let isDragging = false;
-            let container = element.parentElement;
+
+            element.style.cursor = 'grab';
+            element.style.touchAction = 'none';
 
             element.addEventListener('mousedown', startDrag);
             element.addEventListener('touchstart', startDrag, {{ passive: false }});
 
             function startDrag(e) {{
                 isDragging = true;
+                element.style.cursor = 'grabbing';
+                element.style.zIndex = '100';
                 e.preventDefault();
+                e.stopPropagation();
 
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('touchmove', onMove, {{ passive: false }});
-                document.addEventListener('mouseup', stopDrag);
-                document.addEventListener('touchend', stopDrag);
+                window.addEventListener('mousemove', onMove, {{ capture: true }});
+                window.addEventListener('touchmove', onMove, {{ passive: false, capture: true }});
+                window.addEventListener('mouseup', stopDrag, {{ capture: true }});
+                window.addEventListener('touchend', stopDrag, {{ capture: true }});
             }}
 
             function onMove(e) {{
-                if (!isDragging || !container) return;
+                if (!isDragging) return;
                 e.preventDefault();
+                e.stopPropagation();
 
-                let rect = container.getBoundingClientRect();
-                let clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                const container = element.parentElement;
+                if (!container) return;
+
+                const rect = container.getBoundingClientRect();
+                const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+
+                if (clientX === undefined || clientY === undefined) return;
 
                 let x = ((clientX - rect.left) / rect.width) * 100;
                 let y = ((clientY - rect.top) / rect.height) * 100;
@@ -1027,12 +1038,16 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                 element.style.top = `${{y.toFixed(2)}}%`;
             }}
 
-            function stopDrag() {{
+            function stopDrag(e) {{
+                if (!isDragging) return;
                 isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('mouseup', stopDrag);
-                document.removeEventListener('touchend', stopDrag);
+                element.style.cursor = 'grab';
+                element.style.zIndex = '30';
+
+                window.removeEventListener('mousemove', onMove, {{ capture: true }});
+                window.removeEventListener('touchmove', onMove, {{ capture: true }});
+                window.removeEventListener('mouseup', stopDrag, {{ capture: true }});
+                window.removeEventListener('touchend', stopDrag, {{ capture: true }});
             }}
         }}
 
@@ -1425,7 +1440,7 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
             if (hasImage) {{
                 container.innerHTML = `
                     <div class="relative w-full overflow-hidden border-2 border-gray-400 rounded-lg shadow-inner flex items-center justify-center bg-gray-100" style="aspect-ratio: ${{roomMap.width}} / ${{roomMap.height}};">
-                        <img src="data:image/png;base64,${{roomMap.image_b64}}" class="w-full h-full object-contain block" alt="Plano {room_name}">
+                        <img src="data:image/png;base64,${{roomMap.image_b64}}" class="w-full h-full object-contain block pointer-events-none select-none" draggable="false" alt="Plano {room_name}">
                         <div id="singlePinsLayer" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
                     </div>
                 `;
@@ -1758,28 +1773,39 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
 
         function makeDraggable(element) {{
             let isDragging = false;
-            let container = element.parentElement;
+
+            element.style.cursor = 'grab';
+            element.style.touchAction = 'none';
 
             element.addEventListener('mousedown', startDrag);
             element.addEventListener('touchstart', startDrag, {{ passive: false }});
 
             function startDrag(e) {{
                 isDragging = true;
+                element.style.cursor = 'grabbing';
+                element.style.zIndex = '100';
                 e.preventDefault();
+                e.stopPropagation();
 
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('touchmove', onMove, {{ passive: false }});
-                document.addEventListener('mouseup', stopDrag);
-                document.addEventListener('touchend', stopDrag);
+                window.addEventListener('mousemove', onMove, {{ capture: true }});
+                window.addEventListener('touchmove', onMove, {{ passive: false, capture: true }});
+                window.addEventListener('mouseup', stopDrag, {{ capture: true }});
+                window.addEventListener('touchend', stopDrag, {{ capture: true }});
             }}
 
             function onMove(e) {{
-                if (!isDragging || !container) return;
+                if (!isDragging) return;
                 e.preventDefault();
+                e.stopPropagation();
 
-                let rect = container.getBoundingClientRect();
-                let clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                const container = element.parentElement;
+                if (!container) return;
+
+                const rect = container.getBoundingClientRect();
+                const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+
+                if (clientX === undefined || clientY === undefined) return;
 
                 let x = ((clientX - rect.left) / rect.width) * 100;
                 let y = ((clientY - rect.top) / rect.height) * 100;
@@ -1791,12 +1817,16 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
                 element.style.top = `${{y.toFixed(2)}}%`;
             }}
 
-            function stopDrag() {{
+            function stopDrag(e) {{
+                if (!isDragging) return;
                 isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('mouseup', stopDrag);
-                document.removeEventListener('touchend', stopDrag);
+                element.style.cursor = 'grab';
+                element.style.zIndex = '30';
+
+                window.removeEventListener('mousemove', onMove, {{ capture: true }});
+                window.removeEventListener('touchmove', onMove, {{ capture: true }});
+                window.removeEventListener('mouseup', stopDrag, {{ capture: true }});
+                window.removeEventListener('touchend', stopDrag, {{ capture: true }});
             }}
         }}
     </script>
