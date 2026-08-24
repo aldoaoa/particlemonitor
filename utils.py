@@ -60,9 +60,6 @@ def load_room_maps_and_coordinates(project_dir=None):
             with open(csv_path, mode="r", encoding="utf-8-sig") as f:
                 reader = csv.reader(f)
                 lines = list(reader)
-                # Row 0: ,Cuarto 1,,Cuarto 2,,Cuarto 3,,Cuarto 4,,Cuarto 5,,Cuarto 6,
-                # Row 1: ,X,Y,X,Y,X,Y,X,Y,X,Y,X,Y
-                # Rows 2..21: Points 1 to 20
                 for row in lines[2:]:
                     if not row or len(row) < 13:
                         continue
@@ -248,7 +245,8 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
 
 def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=None):
     """
-    Generates complete HTML report string with multi-room support (Cuarto 1 to Cuarto 6).
+    Generates complete HTML report string optimized for Portrait PDF export (Vertical).
+    Guarantees no internal clipping or truncation across page breaks.
     """
     if limits is None:
         limits = DEFAULT_LIMITS
@@ -300,11 +298,11 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
 
         .cell-input {{
             width: 100%;
-            padding: 2px 4px;
-            font-size: 0.72rem;
+            padding: 1px 2px;
+            font-size: 0.65rem;
             text-align: right;
             border: 1px solid #d1d5db;
-            border-radius: 3px;
+            border-radius: 2px;
             transition: all 0.15s ease;
             font-variant-numeric: tabular-nums;
         }}
@@ -330,51 +328,58 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
 
         .page-container {{
             width: 100%;
-            max-width: 1400px;
-            margin: 0 auto 2rem auto;
+            max-width: 1200px;
+            margin: 0 auto 1.5rem auto;
             background: #ffffff;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         }}
 
+        /* STRICT PORTRAIT PRINTING & ZERO-TRUNCATION CSS */
         @media print {{
             body {{
-                background: #ffffff;
-                padding: 0;
-                margin: 0;
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }}
             .no-print {{
                 display: none !important;
             }}
             .page-break {{
-                page-break-before: always;
-                break-before: page;
+                page-break-before: always !important;
+                break-before: page !important;
             }}
             .page-container {{
-                box-shadow: none;
+                box-shadow: none !important;
                 max-width: 100% !important;
                 width: 100% !important;
                 padding: 0 !important;
-                margin: 0 0 20px 0 !important;
+                margin: 0 0 10px 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }}
             .chart-wrapper {{
-                height: 170px !important;
+                height: 135px !important;
+            }}
+            tr, table, tbody, td, th, .chart-wrapper, .map-pin, img, .summary-card-block {{
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }}
             @page {{
-                size: landscape;
-                margin: 8mm;
+                size: letter portrait;
+                margin: 6mm 5mm;
             }}
         }}
 
         .map-pin {{
             position: absolute;
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 700;
             cursor: move;
             user-select: none;
@@ -403,24 +408,24 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
         }}
     </style>
 </head>
-<body class="p-2 sm:p-6">
+<body class="p-2 sm:p-4">
 
     <!-- Action Bar -->
-    <div class="no-print max-w-[1400px] mx-auto mb-4 bg-white p-4 rounded-xl shadow-md border border-gray-200 flex flex-wrap items-center justify-between gap-3">
+    <div class="no-print max-w-[1200px] mx-auto mb-4 bg-white p-4 rounded-xl shadow-md border border-gray-200 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center space-x-3">
             <div class="p-2 bg-red-50 rounded-lg border border-red-100">
                 <i class="fa-solid fa-microscope text-red-600 text-xl"></i>
             </div>
             <div>
                 <h1 class="font-bold text-gray-800 text-lg leading-tight">Reporte Multicuarto (Cuartos 1 a 6)</h1>
-                <p class="text-xs text-gray-500">Monitoreo Ambiental Completo - Norma ISO 14644-1 (ISO 8)</p>
+                <p class="text-xs text-gray-500">Monitoreo Ambiental Completo - Norma ISO 14644-1 (ISO 8) - PDF Vertical</p>
             </div>
         </div>
 
         <!-- Room Selector Bar (Screen Mode) -->
         <div class="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-300">
             <span class="text-xs font-bold text-gray-600 px-2">Ver Cuarto:</span>
-            <button onclick="switchRoom('all')" id="btn-room-all" class="px-2.5 py-1 text-xs font-bold rounded bg-red-600 text-white shadow-sm">Todos (Impresión)</button>
+            <button onclick="switchRoom('all')" id="btn-room-all" class="px-2.5 py-1 text-xs font-bold rounded bg-red-600 text-white shadow-sm">Todos (Impresión Vertical)</button>
             <button onclick="switchRoom('Cuarto 1')" id="btn-room-1" class="px-2.5 py-1 text-xs font-bold rounded bg-white text-gray-700 border hover:bg-gray-200">Cuarto 1</button>
             <button onclick="switchRoom('Cuarto 2')" id="btn-room-2" class="px-2.5 py-1 text-xs font-bold rounded bg-white text-gray-700 border hover:bg-gray-200">Cuarto 2</button>
             <button onclick="switchRoom('Cuarto 3')" id="btn-room-3" class="px-2.5 py-1 text-xs font-bold rounded bg-white text-gray-700 border hover:bg-gray-200">Cuarto 3</button>
@@ -431,7 +436,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
 
         <div class="flex flex-wrap items-center gap-2">
             <button onclick="window.print()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-2">
-                <i class="fa-solid fa-file-pdf text-sm"></i> Imprimir Reporte de 6 Cuartos
+                <i class="fa-solid fa-file-pdf text-sm"></i> Imprimir / Exportar PDF Vertical
             </button>
         </div>
     </div>
@@ -519,19 +524,19 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
 
             return `
             <div class="room-block" id="block-${{roomName.replace(' ', '-')}}">
-                <!-- PAGE 1: DATA & CHARTS -->
-                <div class="page-container p-4 sm:p-6 rounded-xl">
-                    <div class="grid grid-cols-12 gap-4 pb-4 border-b-2 border-gray-800 items-stretch">
+                <!-- PAGE 1: DATA & CHARTS (PORTRAIT FIT) -->
+                <div class="page-container p-3 sm:p-5 rounded-xl">
+                    <div class="grid grid-cols-12 gap-3 pb-3 border-b-2 border-gray-800 items-stretch">
                         <div class="col-span-12 md:col-span-3 flex flex-col justify-center items-start">
-                            <img src="https://raw.githubusercontent.com/aldoaoa/Visualizador-BCS-IDS/3a44ab1685fb192b1420168d4e246059c8261134/BCS%20LOGO.png" alt="BCS Logo" class="h-12 w-auto object-contain">
+                            <img src="https://raw.githubusercontent.com/aldoaoa/Visualizador-BCS-IDS/3a44ab1685fb192b1420168d4e246059c8261134/BCS%20LOGO.png" alt="BCS Logo" class="h-10 w-auto object-contain">
                         </div>
                         <div class="col-span-12 md:col-span-6 text-center flex flex-col justify-center">
-                            <h2 class="text-xl font-black text-gray-900 tracking-tight uppercase">
+                            <h2 class="text-lg font-black text-gray-900 tracking-tight uppercase">
                                 REPORTE DE MEDICIÓN DE PARTÍCULAS - ${{roomName.toUpperCase()}}
                             </h2>
-                            <p class="text-xs text-gray-500 font-semibold tracking-wider">SISTEMA DE CONTROL DE CALIDAD AMBIENTAL - SALA BLANCA ISO 8</p>
+                            <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SISTEMA DE CONTROL DE CALIDAD AMBIENTAL - SALA BLANCA ISO 8</p>
                         </div>
-                        <div class="col-span-12 md:col-span-3 text-[10px] border border-gray-400 rounded p-1.5 bg-gray-50 flex flex-col justify-between">
+                        <div class="col-span-12 md:col-span-3 text-[9px] border border-gray-400 rounded p-1 bg-gray-50 flex flex-col justify-between">
                             <div class="flex justify-between border-b border-gray-300 pb-0.5">
                                 <span class="font-bold text-gray-600">Código Formato:</span>
                                 <span class="font-mono text-gray-800">FOR-CAL-042</span>
@@ -548,30 +553,30 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                     </div>
 
                     <!-- General Parameters Grid -->
-                    <div class="grid grid-cols-12 gap-3 my-3 text-xs">
-                        <div class="col-span-12 md:col-span-6 grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                    <div class="grid grid-cols-12 gap-2 my-2 text-[10px]">
+                        <div class="col-span-12 md:col-span-6 grid grid-cols-3 gap-1 bg-gray-50 p-1.5 rounded border border-gray-200">
                             <div class="font-semibold text-gray-700">Fecha: <span class="font-normal text-gray-900">${{docMeta.fecha}}</span></div>
                             <div class="font-semibold text-gray-700">Auditor: <span class="font-normal text-gray-900">${{docMeta.auditor}}</span></div>
                             <div class="font-semibold text-gray-700">Área: <span class="font-bold text-blue-700">${{roomName}}</span></div>
                         </div>
-                        <div class="col-span-12 md:col-span-6 grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
+                        <div class="col-span-12 md:col-span-6 grid grid-cols-3 gap-1 bg-gray-50 p-1.5 rounded border border-gray-200">
                             <div class="font-semibold text-gray-700">Equipo: <span class="font-normal text-gray-900">${{docMeta.equipo}}</span></div>
                             <div class="font-semibold text-gray-700">Temp: <span class="font-normal text-gray-900">${{docMeta.temp}} °C</span></div>
                             <div class="font-semibold text-gray-700">Humedad: <span class="font-normal text-gray-900">${{docMeta.rh}} %</span></div>
                         </div>
                     </div>
 
-                    <div class="bg-gray-800 text-white font-bold text-center py-1 rounded-t text-xs uppercase">
+                    <div class="bg-gray-800 text-white font-bold text-center py-0.5 rounded-t text-[10px] uppercase">
                         Medición de Concentración de Partículas por M³ - ${{roomName}}
                     </div>
 
-                    <div class="overflow-x-auto border border-gray-300 rounded-b mb-3">
-                        <table class="w-full text-[11px] border-collapse bg-white" id="table-${{roomIdx}}">
+                    <div class="overflow-x-auto border border-gray-300 rounded-b mb-2">
+                        <table class="w-full text-[10px] border-collapse bg-white" id="table-${{roomIdx}}">
                             <thead>
                                 <tr class="bg-gray-100 text-gray-700 text-center border-b border-gray-300">
-                                    <th class="p-1 border-r border-gray-300 w-28 text-left pl-2">Muestra por M³</th>
-                                    <th class="p-1 border-r border-gray-300 w-10 bg-gray-200 font-bold">Toma</th>
-                                    ${{Array.from({{length:20}}, (_, i) => `<th class="p-1 border-r border-gray-300 font-bold w-[4.2%] text-center">${{i+1}}</th>`).join('')}}
+                                    <th class="p-0.5 border-r border-gray-300 w-24 text-left pl-1">Muestra por M³</th>
+                                    <th class="p-0.5 border-r border-gray-300 w-8 bg-gray-200 font-bold">Toma</th>
+                                    ${{Array.from({{length:20}}, (_, i) => `<th class="p-0.5 border-r border-gray-300 font-bold w-[4.3%] text-center">${{i+1}}</th>`).join('')}}
                                 </tr>
                             </thead>
                             <tbody id="tbody-${{roomIdx}}"></tbody>
@@ -579,86 +584,77 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                     </div>
 
                     <!-- Summary Cards -->
-                    <div class="mb-4">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs" id="summary-${{roomIdx}}"></div>
+                    <div class="mb-3 summary-card-block">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px]" id="summary-${{roomIdx}}"></div>
                     </div>
 
                     <!-- Charts -->
-                    <div class="space-y-3">
-                        <div class="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
-                            <div class="flex justify-between items-center mb-1 px-1">
-                                <span class="font-bold text-xs text-gray-800">Canal: ${{docMeta.ch1_name}} (Límite Máx ISO 8: ${{LIMITS.c05.toLocaleString()}} part/m³)</span>
-                                <span id="badge-05-${{roomIdx}}" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
+                    <div class="space-y-2">
+                        <div class="border border-gray-300 rounded-lg p-1.5 bg-white shadow-sm">
+                            <div class="flex justify-between items-center mb-0.5 px-1">
+                                <span class="font-bold text-[10px] text-gray-800">Canal: ${{docMeta.ch1_name}} (Límite Máx ISO 8: ${{LIMITS.c05.toLocaleString()}} part/m³)</span>
+                                <span id="badge-05-${{roomIdx}}" class="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
                             </div>
-                            <div class="relative w-full h-36 chart-wrapper"><canvas id="chart05-${{roomIdx}}"></canvas></div>
+                            <div class="relative w-full h-32 chart-wrapper"><canvas id="chart05-${{roomIdx}}"></canvas></div>
                         </div>
 
-                        <div class="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
-                            <div class="flex justify-between items-center mb-1 px-1">
-                                <span class="font-bold text-xs text-gray-800">Canal: ${{docMeta.ch2_name}} (Límite Máx ISO 8: ${{LIMITS.c1.toLocaleString()}} part/m³)</span>
-                                <span id="badge-1-${{roomIdx}}" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
+                        <div class="border border-gray-300 rounded-lg p-1.5 bg-white shadow-sm">
+                            <div class="flex justify-between items-center mb-0.5 px-1">
+                                <span class="font-bold text-[10px] text-gray-800">Canal: ${{docMeta.ch2_name}} (Límite Máx ISO 8: ${{LIMITS.c1.toLocaleString()}} part/m³)</span>
+                                <span id="badge-1-${{roomIdx}}" class="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
                             </div>
-                            <div class="relative w-full h-36 chart-wrapper"><canvas id="chart1-${{roomIdx}}"></canvas></div>
+                            <div class="relative w-full h-32 chart-wrapper"><canvas id="chart1-${{roomIdx}}"></canvas></div>
                         </div>
 
-                        <div class="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
-                            <div class="flex justify-between items-center mb-1 px-1">
-                                <span class="font-bold text-xs text-gray-800">Canal: ${{docMeta.ch3_name}} (Límite Máx ISO 8: ${{LIMITS.c5.toLocaleString()}} part/m³)</span>
-                                <span id="badge-5-${{roomIdx}}" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
+                        <div class="border border-gray-300 rounded-lg p-1.5 bg-white shadow-sm">
+                            <div class="flex justify-between items-center mb-0.5 px-1">
+                                <span class="font-bold text-[10px] text-gray-800">Canal: ${{docMeta.ch3_name}} (Límite Máx ISO 8: ${{LIMITS.c5.toLocaleString()}} part/m³)</span>
+                                <span id="badge-5-${{roomIdx}}" class="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
                             </div>
-                            <div class="relative w-full h-36 chart-wrapper"><canvas id="chart5-${{roomIdx}}"></canvas></div>
+                            <div class="relative w-full h-32 chart-wrapper"><canvas id="chart5-${{roomIdx}}"></canvas></div>
                         </div>
                     </div>
                 </div>
 
                 <div class="page-break"></div>
 
-                <!-- PAGE 2: MAP & LOCATION PLAN -->
-                <div class="page-container p-4 sm:p-6 rounded-xl mb-8">
-                    <div class="flex justify-between items-center border-b-2 border-gray-800 pb-3 mb-4">
+                <!-- PAGE 2: MAP & LOCATION PLAN (PORTRAIT FIT) -->
+                <div class="page-container p-3 sm:p-5 rounded-xl mb-6">
+                    <div class="flex justify-between items-center border-b-2 border-gray-800 pb-2 mb-3">
                         <div>
-                            <h2 class="text-xl font-black text-gray-900 tracking-tight uppercase">
+                            <h2 class="text-lg font-black text-gray-900 tracking-tight uppercase">
                                 PLANO DE UBICACIÓN Y DISTRIBUCIÓN - ${{roomName.toUpperCase()}}
                             </h2>
-                            <p class="text-xs text-gray-500 font-semibold">Mapeo Físico de Puntos de Muestreo en Planta</p>
+                            <p class="text-[10px] text-gray-500 font-semibold">Mapeo Físico de Puntos de Muestreo en Planta</p>
                         </div>
-                        <div class="text-right text-xs">
+                        <div class="text-right text-[10px]">
                             <span class="font-bold text-gray-600">Página:</span>
                             <span class="font-mono text-gray-800">${{roomIdx*2}} de 12</span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-12 gap-6 items-start">
-                        <div class="col-span-12 lg:col-span-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <div class="mb-4">
-                                <label class="block text-xs font-bold text-gray-500 uppercase">Área Registrada</label>
-                                <div class="text-lg font-black text-gray-800">${{roomName}}</div>
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-xs font-bold text-gray-500 uppercase">Superficie Total</label>
-                                <div class="text-md font-bold text-gray-700">${{docMeta.area_size}}</div>
-                            </div>
-
-                            <div class="border-t border-gray-300 pt-4 mt-4">
-                                <h4 class="font-bold text-xs uppercase text-gray-700 mb-3">Simbología y Estado - ${{roomName}}</h4>
-                                <div class="space-y-2 text-xs">
-                                    <div class="flex items-center gap-2 font-medium text-gray-700">
-                                        <span class="w-4 h-4 rounded-full bg-blue-600 border border-white shadow-sm inline-block"></span>
-                                        <span>Puntos totales (20)</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 font-medium text-gray-700">
-                                        <span class="w-4 h-4 rounded-full bg-sky-600 border border-white shadow-sm inline-block"></span>
-                                        <span id="passCountText-${{roomIdx}}">Dentro de parámetros: 20</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 font-medium text-gray-700">
-                                        <span class="w-4 h-4 rounded-full bg-red-600 border border-white shadow-sm inline-block"></span>
-                                        <span id="failCountText-${{roomIdx}}">Fuera de parámetros: 0</span>
+                    <div class="grid grid-cols-12 gap-4 items-start">
+                        <div class="col-span-12 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <div class="grid grid-cols-3 gap-3 mb-2">
+                                <div>
+                                    <label class="block text-[9px] font-bold text-gray-500 uppercase">Área Registrada</label>
+                                    <div class="text-sm font-black text-gray-800">${{roomName}}</div>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold text-gray-500 uppercase">Superficie Total</label>
+                                    <div class="text-sm font-bold text-gray-700">${{docMeta.area_size}}</div>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold text-gray-500 uppercase">Simbología y Estado</label>
+                                    <div class="flex items-center gap-3 text-[10px] font-semibold">
+                                        <span id="passCountText-${{roomIdx}}" class="text-sky-700">Dentro: 20</span>
+                                        <span id="failCountText-${{roomIdx}}" class="text-red-700">Fuera: 0</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-span-12 lg:col-span-8">
+                        <div class="col-span-12">
                             ${{mapVisualHtml}}
                         </div>
                     </div>
@@ -688,13 +684,13 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                     if (t === 1) {{
                         const tdLabel = document.createElement('td');
                         tdLabel.rowSpan = 2;
-                        tdLabel.className = "p-1 border-r border-gray-300 font-bold bg-gray-50 text-gray-800 text-[10px]";
+                        tdLabel.className = "p-0.5 border-r border-gray-300 font-bold bg-gray-50 text-gray-800 text-[9px]";
                         tdLabel.innerText = ch.label;
                         tr.appendChild(tdLabel);
                     }}
 
                     const tdTake = document.createElement('td');
-                    tdTake.className = "p-1 border-r border-gray-300 font-bold text-center bg-gray-100 text-gray-700";
+                    tdTake.className = "p-0.5 border-r border-gray-300 font-bold text-center bg-gray-100 text-gray-700 text-[9px]";
                     tdTake.innerText = t;
                     tr.appendChild(tdTake);
 
@@ -828,20 +824,20 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                 if (badgeEl) {{
                     if (isExceeded) {{
                         badgeEl.innerText = "EXCEDE LÍMITE ISO 8";
-                        badgeEl.className = "px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-800";
+                        badgeEl.className = "px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-100 text-red-800";
                     }} else {{
                         badgeEl.innerText = "CUMPLE ISO 8";
-                        badgeEl.className = "px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800";
+                        badgeEl.className = "px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-green-100 text-green-800";
                     }}
                 }}
 
                 const cardHtml = `
-                    <div class="border ${{isExceeded ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}} rounded-lg p-2 flex items-center justify-between">
-                        <div class="font-bold text-gray-800 border-r border-gray-300 pr-2">
-                            <span class="block text-xs font-extrabold ${{isExceeded ? 'text-red-700' : 'text-gray-900'}}">${{ch.name}}</span>
-                            <span class="text-[9px] text-gray-500 font-normal">(${{ch.limitName}})</span>
+                    <div class="border ${{isExceeded ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}} rounded p-1.5 flex items-center justify-between">
+                        <div class="font-bold text-gray-800 border-r border-gray-300 pr-1.5">
+                            <span class="block text-[10px] font-extrabold ${{isExceeded ? 'text-red-700' : 'text-gray-900'}}">${{ch.name}}</span>
+                            <span class="text-[8px] text-gray-500 font-normal">(${{ch.limitName}})</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-x-2 text-center text-[9px]">
+                        <div class="grid grid-cols-2 gap-x-1.5 text-center text-[8px]">
                             <div>
                                 <span class="block text-gray-500 font-semibold">Toma 1</span>
                                 <span class="font-mono font-bold text-gray-800">${{avgT1.toLocaleString()}}</span>
@@ -851,9 +847,9 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                                 <span class="font-mono font-bold text-gray-800">${{avgT2.toLocaleString()}}</span>
                             </div>
                         </div>
-                        <div class="border-l border-gray-300 pl-2 text-right">
-                            <span class="block text-[9px] text-gray-500 font-bold uppercase">Prom. General</span>
-                            <span class="font-mono font-extrabold text-xs ${{isExceeded ? 'text-red-600' : 'text-blue-700'}}">${{avgGlobal.toLocaleString()}}</span>
+                        <div class="border-l border-gray-300 pl-1.5 text-right">
+                            <span class="block text-[8px] text-gray-500 font-bold uppercase">Prom. General</span>
+                            <span class="font-mono font-extrabold text-[10px] ${{isExceeded ? 'text-red-600' : 'text-blue-700'}}">${{avgGlobal.toLocaleString()}}</span>
                         </div>
                     </div>
                 `;
@@ -875,8 +871,8 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                                 data: multiRoomData[roomName][chKey].t1.map(v => v >= 0 ? v : null),
                                 borderColor: '#0284c7',
                                 backgroundColor: 'rgba(2, 132, 199, 0.1)',
-                                borderWidth: 2,
-                                pointRadius: 2.5,
+                                borderWidth: 1.5,
+                                pointRadius: 2,
                                 tension: 0.2
                             }},
                             {{
@@ -884,16 +880,16 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                                 data: multiRoomData[roomName][chKey].t2.map(v => v >= 0 ? v : null),
                                 borderColor: '#0d9488',
                                 backgroundColor: 'rgba(13, 148, 136, 0.1)',
-                                borderWidth: 2,
-                                pointRadius: 2.5,
+                                borderWidth: 1.5,
+                                pointRadius: 2,
                                 tension: 0.2
                             }},
                             {{
                                 label: `Límite ISO 8 (${{limit.toLocaleString()}})`,
                                 data: Array(20).fill(limit),
                                 borderColor: '#ef4444',
-                                borderWidth: 1.5,
-                                borderDash: [4, 4],
+                                borderWidth: 1.2,
+                                borderDash: [3, 3],
                                 pointRadius: 0,
                                 fill: false
                             }}
@@ -903,11 +899,11 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {{
-                            legend: {{ display: true, position: 'top', labels: {{ boxWidth: 10, fontSize: 9 }} }}
+                            legend: {{ display: true, position: 'top', labels: {{ boxWidth: 8, fontSize: 8, padding: 4 }} }}
                         }},
                         scales: {{
-                            x: {{ ticks: {{ font: {{ size: 8 }} }} }},
-                            y: {{ ticks: {{ font: {{ size: 8 }}, callback: v => v.toLocaleString() }} }}
+                            x: {{ ticks: {{ font: {{ size: 7 }} }} }},
+                            y: {{ ticks: {{ font: {{ size: 7 }}, callback: v => v.toLocaleString() }} }}
                         }}
                     }}
                 }};
@@ -992,8 +988,8 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
 
             const passEl = document.getElementById(`passCountText-${{roomIdx}}`);
             const failEl = document.getElementById(`failCountText-${{roomIdx}}`);
-            if (passEl) passEl.innerText = `Dentro de parámetros: ${{passCount}}`;
-            if (failEl) failEl.innerText = `Fuera de parámetros: ${{failCount}}`;
+            if (passEl) passEl.innerText = `Dentro: ${{passCount}}`;
+            if (failEl) failEl.innerText = `Fuera: ${{failCount}}`;
         }}
 
         function makeDraggable(element) {{
