@@ -8,6 +8,7 @@ from datetime import date
 from utils import (
     process_excel_data,
     generate_full_html_report,
+    generate_single_room_html_report,
     load_room_maps_and_coordinates,
     ISO_LIMITS_M3,
     DEFAULT_LIMITS
@@ -159,8 +160,9 @@ with col_logo:
 
 st.markdown("---")
 
-tab_report, tab_analytics, tab_guide = st.tabs([
+tab_report, tab_single_room, tab_analytics, tab_guide = st.tabs([
     "📄 Reporte Oficial 6 Cuartos (HTML / PDF)",
+    "🎯 Reporte Individual por Área / Mapa",
     "📊 Analytics e Inspección por Cuarto",
     "ℹ️ Guía ISO 14644"
 ])
@@ -181,7 +183,57 @@ with tab_report:
     
     components.html(html_content, height=2200, scrolling=True)
 
-# Tab 2: Streamlit Interactive Analytics & Data Tables by Room
+# Tab 2: Single Room Custom Report Component
+with tab_single_room:
+    st.subheader("🎯 Reporte de una Sola Área / Cuarto (Personalizable)")
+    st.markdown("Selecciona una planta/cuarto de las 6 precargadas y especifica la cantidad de puntos de medición requeridos.")
+
+    col_sr1, col_sr2 = st.columns([2, 2])
+    with col_sr1:
+        selected_single_room = st.selectbox(
+            "Selecciona el Cuarto / Mapa",
+            options=["Cuarto 1", "Cuarto 2", "Cuarto 3", "Cuarto 4", "Cuarto 5", "Cuarto 6"],
+            index=0,
+            key="single_room_select"
+        )
+    with col_sr2:
+        num_points_input = st.slider(
+            "Número de Puntos Muestra Requeridos",
+            min_value=1,
+            max_value=20,
+            value=15,
+            step=1,
+            help="Selecciona cuántas mediciones/puntos se incluirán en el reporte."
+        )
+
+    single_room_data = multi_room_data.get(selected_single_room, {
+        "c05": {"t1": [-1]*20, "t2": [-1]*20},
+        "c1":  {"t1": [-1]*20, "t2": [-1]*20},
+        "c5":  {"t1": [-1]*20, "t2": [-1]*20}
+    })
+
+    single_room_map = room_maps.get(selected_single_room, {})
+
+    single_html_content = generate_single_room_html_report(
+        doc_metadata,
+        selected_single_room,
+        single_room_data,
+        num_points=num_points_input,
+        limits=custom_limits,
+        room_map=single_room_map
+    )
+
+    st.download_button(
+        label=f"💾 Descargar Reporte de {selected_single_room} ({num_points_input} Puntos - HTML Standalone)",
+        data=single_html_content,
+        file_name=f"Reporte_{selected_single_room.replace(' ', '_')}_{num_points_input}Puntos_{fecha_input}.html",
+        mime="text/html",
+        help="Descarga el reporte de un solo cuarto en formato HTML listo para imprimir a PDF en vertical."
+    )
+
+    components.html(single_html_content, height=1300, scrolling=True)
+
+# Tab 3: Streamlit Interactive Analytics & Data Tables by Room
 with tab_analytics:
     selected_room = st.selectbox(
         "Selecciona el Cuarto a Inspeccionar",
