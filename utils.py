@@ -3,6 +3,10 @@ import numpy as np
 import json
 import re
 import io
+import os
+import base64
+import csv
+import struct
 
 # Standard ISO 14644-1 limits in particles per m3
 # ISO 8: 0.5um: 3,520,000 | 1.0um: 832,000 | 5.0um: 29,300
@@ -37,6 +41,97 @@ def find_column(df, possible_names):
             if p.lower() in c.lower():
                 return c
     return None
+
+def load_room_maps_and_coordinates(project_dir=None):
+    """
+    Loads PNG maps (cuarto1.png .. cuarto6.png) and coordinates_cleanroom.csv from img/ folder.
+    Converts image pixel coordinates (X, Y) into percentage coordinates relative to image width and height.
+    """
+    if project_dir is None:
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    img_dir = os.path.join(project_dir, "img")
+    csv_path = os.path.join(img_dir, "coordenadas_cleanroom.csv")
+    
+    coords_by_room = {f"Cuarto {r}": [] for r in range(1, 7)}
+    
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, mode="r", encoding="utf-8-sig") as f:
+                reader = csv.reader(f)
+                lines = list(reader)
+                # Row 0: ,Cuarto 1,,Cuarto 2,,Cuarto 3,,Cuarto 4,,Cuarto 5,,Cuarto 6,
+                # Row 1: ,X,Y,X,Y,X,Y,X,Y,X,Y,X,Y
+                # Rows 2..21: Points 1 to 20
+                for row in lines[2:]:
+                    if not row or len(row) < 13:
+                        continue
+                    pt_num_str = row[0].strip()
+                    if not pt_num_str.isdigit():
+                        continue
+                    
+                    pt_num = int(pt_num_str)
+                    
+                    for r in range(1, 7):
+                        x_col = (r - 1) * 2 + 1
+                        y_col = (r - 1) * 2 + 2
+                        x_val = row[x_col].strip() if x_col < len(row) else ""
+                        y_val = row[y_col].strip() if y_col < len(row) else ""
+                        
+                        if x_val != "" and y_val != "":
+                            try:
+                                coords_by_room[f"Cuarto {r}"].append({
+                                    "point": pt_num,
+                                    "x": float(x_val),
+                                    "y": float(y_val)
+                                })
+                            except ValueError:
+                                pass
+        except Exception as e:
+            print(f"Error reading coordinates CSV: {e}")
+
+    room_maps = {}
+    
+    for r in range(1, 7):
+        room_name = f"Cuarto {r}"
+        img_path = os.path.join(img_dir, f"cuarto{r}.png")
+        
+        b64_str = ""
+        w, h = 800, 600
+        
+        if os.path.exists(img_path):
+            try:
+                with open(img_path, "rb") as img_file:
+                    img_bytes = img_file.read()
+                    b64_str = base64.b64encode(img_bytes).decode("utf-8")
+                    
+                    if img_bytes.startswith(b'\x89PNG\r\n\x1a\n') and len(img_bytes) >= 24:
+                        w, h = struct.unpack(">II", img_bytes[16:24])
+            except Exception as e:
+                print(f"Error loading image {img_path}: {e}")
+        
+        pin_coords = []
+        raw_coords = coords_by_room.get(room_name, [])
+        for c in raw_coords:
+            x_pct = round((c["x"] / w) * 100, 2)
+            y_pct = round((c["y"] / h) * 100, 2)
+            pin_coords.append({
+                "point": c["point"],
+                "x_pct": x_pct,
+                "y_pct": y_pct,
+                "x_px": c["x"],
+                "y_px": c["y"]
+            })
+            
+        room_maps[room_name] = {
+            "image_b64": b64_str,
+            "width": w,
+            "height": h,
+            "pins": pin_coords
+        }
+        
+    return room_maps
+
 
 def process_excel_data(file_source, mapping_mode="interleaved"):
     """
@@ -80,7 +175,6 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
     ch2_size_val = str(df[col_ch2_size].iloc[0]) if col_ch2_size and col_ch2_size in df and not pd.isna(df[col_ch2_size].iloc[0]) else "1.0"
     ch3_size_val = str(df[col_ch3_size].iloc[0]) if col_ch3_size and col_ch3_size in df and not pd.isna(df[col_ch3_size].iloc[0]) else "5.0"
 
-    # Fill NaN values with -1 to indicate missing/unmeasured points
     v_cnt1_all = pd.to_numeric(df[col_cnt1], errors='coerce').fillna(-1).tolist() if col_cnt1 else []
     v_cnt2_all = pd.to_numeric(df[col_cnt2], errors='coerce').fillna(-1).tolist() if col_cnt2 else []
     v_cnt3_all = pd.to_numeric(df[col_cnt3], errors='coerce').fillna(-1).tolist() if col_cnt3 else []
@@ -152,15 +246,19 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
     return multi_room_data, meta
 
 
-def generate_full_html_report(metadata, multi_room_data, limits=None):
+def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=None):
     """
     Generates complete HTML report string with multi-room support (Cuarto 1 to Cuarto 6).
     """
     if limits is None:
         limits = DEFAULT_LIMITS
+        
+    if room_maps is None:
+        room_maps = load_room_maps_and_coordinates()
 
     json_multi_room = json.dumps(multi_room_data)
     json_limits = json.dumps(limits)
+    json_room_maps = json.dumps(room_maps)
 
     fecha = str(metadata.get("fecha", "2025-07-21"))
     auditor = str(metadata.get("auditor", "Armando Reyes"))
@@ -269,14 +367,14 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
 
         .map-pin {{
             position: absolute;
-            width: 26px;
-            height: 26px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
             cursor: move;
             user-select: none;
@@ -285,7 +383,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
             transition: background-color 0.3s ease, transform 0.1s ease;
         }}
         .map-pin:hover {{
-            transform: translate(-50%, -50%) scale(1.2);
+            transform: translate(-50%, -50%) scale(1.25);
             z-index: 50;
         }}
         .map-pin.pass {{
@@ -346,6 +444,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
     <script>
         const LIMITS = {json_limits};
         let multiRoomData = {json_multi_room};
+        const roomMaps = {json_room_maps};
         let chartInstances = {{}};
 
         const docMeta = {{
@@ -392,6 +491,32 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
         }}
 
         function createRoomSectionHtml(roomName, roomIdx) {{
+            const mapData = roomMaps[roomName] || {{}};
+            const hasImage = mapData.image_b64 ? true : false;
+            
+            const mapVisualHtml = hasImage ? `
+                <div class="relative w-full overflow-hidden border-2 border-gray-400 rounded-lg shadow-inner flex items-center justify-center bg-gray-100" style="aspect-ratio: ${{mapData.width}} / ${{mapData.height}};">
+                    <img src="data:image/png;base64,${{mapData.image_b64}}" class="w-full h-full object-contain block" alt="Plano ${{roomName}}">
+                    <div id="pinsLayer-${{roomIdx}}" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
+                </div>
+            ` : `
+                <div class="relative w-full aspect-[4/3] bg-gray-100 border-2 border-gray-400 rounded-lg overflow-hidden shadow-inner flex items-center justify-center">
+                    <svg class="w-full h-full opacity-60" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="800" height="600" fill="#f8fafc"/>
+                        <defs>
+                            <pattern id="grid-${{roomIdx}}" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+                            </pattern>
+                        </defs>
+                        <rect width="800" height="600" fill="url(#grid-${{roomIdx}})" />
+                        <rect x="40" y="40" width="720" height="520" fill="none" stroke="#334155" stroke-width="4"/>
+                        <rect x="60" y="60" width="180" height="160" fill="#e0f2fe" stroke="#475569" stroke-width="2"/>
+                        <text x="70" y="85" font-family="sans-serif" font-size="12" font-weight="bold" fill="#334155">${{roomName.toUpperCase()}} LINE</text>
+                    </svg>
+                    <div id="pinsLayer-${{roomIdx}}" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
+                </div>
+            `;
+
             return `
             <div class="room-block" id="block-${{roomName.replace(' ', '-')}}">
                 <!-- PAGE 1: DATA & CHARTS -->
@@ -534,21 +659,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                         </div>
 
                         <div class="col-span-12 lg:col-span-8">
-                            <div class="relative w-full aspect-[4/3] bg-gray-100 border-2 border-gray-400 rounded-lg overflow-hidden shadow-inner flex items-center justify-center">
-                                <svg class="w-full h-full opacity-60" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
-                                    <rect width="800" height="600" fill="#f8fafc"/>
-                                    <defs>
-                                        <pattern id="grid-${{roomIdx}}" width="40" height="40" patternUnits="userSpaceOnUse">
-                                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-                                        </pattern>
-                                    </defs>
-                                    <rect width="800" height="600" fill="url(#grid-${{roomIdx}})" />
-                                    <rect x="40" y="40" width="720" height="520" fill="none" stroke="#334155" stroke-width="4"/>
-                                    <rect x="60" y="60" width="180" height="160" fill="#e0f2fe" stroke="#475569" stroke-width="2"/>
-                                    <text x="70" y="85" font-family="sans-serif" font-size="12" font-weight="bold" fill="#334155">${{roomName.toUpperCase()}} LINE</text>
-                                </svg>
-                                <div id="pinsLayer-${{roomIdx}}" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
-                            </div>
+                            ${{mapVisualHtml}}
                         </div>
                     </div>
                 </div>
@@ -831,13 +942,21 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
             if (!layer) return;
             layer.innerHTML = '';
 
-            defaultPinCoords.forEach((coord, i) => {{
+            const mapData = roomMaps[roomName];
+            const pinsInfo = (mapData && mapData.pins && mapData.pins.length > 0) 
+                ? mapData.pins 
+                : defaultPinCoords.map((coord, i) => ({{ point: i + 1, x_pct: coord.x, y_pct: coord.y }}));
+
+            pinsInfo.forEach((pinData) => {{
+                const pNum = pinData.point;
                 const pin = document.createElement('div');
                 pin.className = 'map-pin pass';
-                pin.id = `pin-${{roomIdx}}-${{i + 1}}`;
-                pin.innerText = i + 1;
-                pin.style.left = `${{coord.x}}%`;
-                pin.style.top = `${{coord.y}}%`;
+                pin.id = `pin-${{roomIdx}}-${{pNum}}`;
+                pin.innerText = pNum;
+                pin.style.left = `${{pinData.x_pct}}%`;
+                pin.style.top = `${{pinData.y_pct}}%`;
+                
+                makeDraggable(pin);
                 layer.appendChild(pin);
             }});
 
@@ -848,9 +967,15 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
             let failCount = 0;
             let passCount = 0;
 
-            for (let p = 0; p < 20; p++) {{
-                const pin = document.getElementById(`pin-${{roomIdx}}-${{p + 1}}`);
-                if (!pin) continue;
+            const mapData = roomMaps[roomName];
+            const pinsInfo = (mapData && mapData.pins && mapData.pins.length > 0) 
+                ? mapData.pins 
+                : defaultPinCoords.map((coord, i) => ({{ point: i + 1, x_pct: coord.x, y_pct: coord.y }}));
+
+            pinsInfo.forEach((pinData) => {{
+                const p = pinData.point - 1;
+                const pin = document.getElementById(`pin-${{roomIdx}}-${{pinData.point}}`);
+                if (!pin) return;
 
                 const c05Exceed = multiRoomData[roomName].c05.t1[p] > LIMITS.c05 || multiRoomData[roomName].c05.t2[p] > LIMITS.c05;
                 const c1Exceed  = multiRoomData[roomName].c1.t1[p]  > LIMITS.c1  || multiRoomData[roomName].c1.t2[p]  > LIMITS.c1;
@@ -863,12 +988,56 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                     pin.className = 'map-pin pass';
                     passCount++;
                 }}
-            }}
+            }});
 
             const passEl = document.getElementById(`passCountText-${{roomIdx}}`);
             const failEl = document.getElementById(`failCountText-${{roomIdx}}`);
             if (passEl) passEl.innerText = `Dentro de parámetros: ${{passCount}}`;
             if (failEl) failEl.innerText = `Fuera de parámetros: ${{failCount}}`;
+        }}
+
+        function makeDraggable(element) {{
+            let isDragging = false;
+            let container = element.parentElement;
+
+            element.addEventListener('mousedown', startDrag);
+            element.addEventListener('touchstart', startDrag, {{ passive: false }});
+
+            function startDrag(e) {{
+                isDragging = true;
+                e.preventDefault();
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('touchmove', onMove, {{ passive: false }});
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchend', stopDrag);
+            }}
+
+            function onMove(e) {{
+                if (!isDragging || !container) return;
+                e.preventDefault();
+
+                let rect = container.getBoundingClientRect();
+                let clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                let x = ((clientX - rect.left) / rect.width) * 100;
+                let y = ((clientY - rect.top) / rect.height) * 100;
+
+                x = Math.max(1, Math.min(99, x));
+                y = Math.max(1, Math.min(99, y));
+
+                element.style.left = `${{x.toFixed(2)}}%`;
+                element.style.top = `${{y.toFixed(2)}}%`;
+            }}
+
+            function stopDrag() {{
+                isDragging = false;
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('mouseup', stopDrag);
+                document.removeEventListener('touchend', stopDrag);
+            }}
         }}
 
         function switchRoom(target) {{

@@ -8,6 +8,7 @@ from datetime import date
 from utils import (
     process_excel_data,
     generate_full_html_report,
+    load_room_maps_and_coordinates,
     ISO_LIMITS_M3,
     DEFAULT_LIMITS
 )
@@ -122,7 +123,9 @@ auditor_input = st.sidebar.text_input("Nombre del Auditor", "Armando Reyes")
 equipo_input = st.sidebar.text_input("Equipo Usado", "BCS-QRO-LAB-ANA001, Particles Plus 8503.")
 area_size_input = st.sidebar.text_input("Superficie Total por Cuarto", "1662.81 m²")
 
-# Load data for 6 rooms
+# Load data for 6 rooms and map images
+room_maps = load_room_maps_and_coordinates()
+
 if uploaded_file is not None:
     try:
         multi_room_data, meta = process_excel_data(uploaded_file, mapping_mode=mapping_mode)
@@ -166,7 +169,7 @@ tab_report, tab_analytics, tab_guide = st.tabs([
 with tab_report:
     st.subheader("Reporte General Completo (Cuartos 1 a 6)")
     
-    html_content = generate_full_html_report(doc_metadata, multi_room_data, limits=custom_limits)
+    html_content = generate_full_html_report(doc_metadata, multi_room_data, limits=custom_limits, room_maps=room_maps)
     
     st.download_button(
         label="💾 Descargar Reporte Completo 6 Cuartos (HTML Standalone)",
