@@ -50,7 +50,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Sidebar setup
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/BCS_Automotive_Interface_Solutions_Logo.svg/512px-BCS_Automotive_Interface_Solutions_Logo.svg.png")
+st.sidebar.image("https://raw.githubusercontent.com/aldoaoa/Visualizador-BCS-IDS/3a44ab1685fb192b1420168d4e246059c8261134/BCS%20LOGO.png")
 st.sidebar.title("🔬 Monitoreo 6 Cuartos")
 st.sidebar.markdown("---")
 
@@ -119,7 +119,7 @@ st.sidebar.markdown("### 📝 Datos del Documento")
 
 fecha_input = st.sidebar.date_input("Fecha de Medición", date(2025, 7, 21)).strftime("%Y-%m-%d")
 auditor_input = st.sidebar.text_input("Nombre del Auditor", "Armando Reyes")
-equipo_input = st.sidebar.text_input("Equipo Usado", "Medidor de Partículas RION KR-12A")
+equipo_input = st.sidebar.text_input("Equipo Usado", "BCS-QRO-LAB-ANA001, Particles Plus 8503.")
 area_size_input = st.sidebar.text_input("Superficie Total por Cuarto", "1662.81 m²")
 
 # Load data for 6 rooms
@@ -150,7 +150,7 @@ doc_metadata = {
 col_header, col_logo = st.columns([4, 1])
 with col_header:
     st.title("Reporte de Medición de Contaminantes - Cuartos 1 al 6")
-    st.caption("Sistema de Control de Calidad Ambiental y Salas Blancas ISO 14644-1 (ISO 8)")
+    st.caption(f"Sistema de Control de Calidad Ambiental y Salas Blancas ISO 14644-1 ({iso_class})")
 with col_logo:
     st.markdown("<h3 style='color:#E2001A; text-align:right;'>BCS</h3>", unsafe_allow_html=True)
 
@@ -187,14 +187,14 @@ with tab_analytics:
     )
 
     room_data = multi_room_data.get(selected_room, {
-        "c05": {"t1": [0]*20, "t2": [0]*20},
-        "c1":  {"t1": [0]*20, "t2": [0]*20},
-        "c5":  {"t1": [0]*20, "t2": [0]*20}
+        "c05": {"t1": [-1]*20, "t2": [-1]*20},
+        "c1":  {"t1": [-1]*20, "t2": [-1]*20},
+        "c5":  {"t1": [-1]*20, "t2": [-1]*20}
     })
 
     def calc_stats(ch_key, limit):
-        t1 = room_data[ch_key]["t1"]
-        t2 = room_data[ch_key]["t2"]
+        t1 = [v for v in room_data[ch_key]["t1"] if v >= 0]
+        t2 = [v for v in room_data[ch_key]["t2"] if v >= 0]
         avg_t1 = round(sum(t1) / len(t1)) if t1 else 0
         avg_t2 = round(sum(t2) / len(t2)) if t2 else 0
         avg_gen = round((avg_t1 + avg_t2) / 2)
@@ -208,9 +208,9 @@ with tab_analytics:
     kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
     kpi1.metric("Temperatura Prom.", f"{doc_metadata['temp']} °C")
     kpi2.metric("Humedad Prom.", f"{doc_metadata['rh']} %")
-    kpi3.metric(f"Canal {doc_metadata['ch1_name']}", f"{gen_c05:,} part/m³", delta="EXCEDE ISO 8" if ex_c05 else "CUMPLE ISO 8", delta_color="inverse" if ex_c05 else "normal")
-    kpi4.metric(f"Canal {doc_metadata['ch2_name']}", f"{gen_c1:,} part/m³", delta="EXCEDE ISO 8" if ex_c1 else "CUMPLE ISO 8", delta_color="inverse" if ex_c1 else "normal")
-    kpi5.metric(f"Canal {doc_metadata['ch3_name']}", f"{gen_c5:,} part/m³", delta="EXCEDE ISO 8" if ex_c5 else "CUMPLE ISO 8", delta_color="inverse" if ex_c5 else "normal")
+    kpi3.metric(f"Canal {doc_metadata['ch1_name']}", f"{gen_c05:,} part/m³", delta=f"EXCEDE {iso_class}" if ex_c05 else f"CUMPLE {iso_class}", delta_color="inverse" if ex_c05 else "normal")
+    kpi4.metric(f"Canal {doc_metadata['ch2_name']}", f"{gen_c1:,} part/m³", delta=f"EXCEDE {iso_class}" if ex_c1 else f"CUMPLE {iso_class}", delta_color="inverse" if ex_c1 else "normal")
+    kpi5.metric(f"Canal {doc_metadata['ch3_name']}", f"{gen_c5:,} part/m³", delta=f"EXCEDE {iso_class}" if ex_c5 else f"CUMPLE {iso_class}", delta_color="inverse" if ex_c5 else "normal")
 
     st.markdown("---")
     st.subheader(f"Gráficos de Concentración por Punto - {selected_room}")
@@ -220,22 +220,22 @@ with tab_analytics:
     def create_plotly_chart(ch_key, ch_label, limit):
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=points_labels, y=room_data[ch_key]["t1"],
+            x=points_labels, y=[v if v >= 0 else None for v in room_data[ch_key]["t1"]],
             mode='lines+markers', name='Toma 1',
             line=dict(color='#0284c7', width=2)
         ))
         fig.add_trace(go.Scatter(
-            x=points_labels, y=room_data[ch_key]["t2"],
+            x=points_labels, y=[v if v >= 0 else None for v in room_data[ch_key]["t2"]],
             mode='lines+markers', name='Toma 2',
             line=dict(color='#0d9488', width=2)
         ))
         fig.add_trace(go.Scatter(
             x=points_labels, y=[limit]*20,
-            mode='lines', name=f'Límite ISO 8 ({limit:,})',
+            mode='lines', name=f'Límite {iso_class} ({limit:,})',
             line=dict(color='#ef4444', width=2, dash='dash')
         ))
         fig.update_layout(
-            title=f"{selected_room} - Canal {ch_label} (Límite Máx ISO 8: {limit:,} partículas/m³)",
+            title=f"{selected_room} - Canal {ch_label} (Límite Máx {iso_class}: {limit:,} partículas/m³)",
             xaxis_title="Punto de Muestra",
             yaxis_title="Partículas / m³",
             hovermode="x unified",

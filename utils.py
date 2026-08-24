@@ -164,7 +164,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
 
     fecha = str(metadata.get("fecha", "2025-07-21"))
     auditor = str(metadata.get("auditor", "Armando Reyes"))
-    equipo = str(metadata.get("equipo", "Medidor de Partículas RION KR-12A"))
+    equipo = str(metadata.get("equipo", "BCS-QRO-LAB-ANA001, Particles Plus 8503."))
     temp = str(metadata.get("temp", "21.15"))
     rh = str(metadata.get("rh", "48.32"))
     ch1_name = str(metadata.get("ch1_name", "0.5 µm"))
@@ -398,18 +398,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                 <div class="page-container p-4 sm:p-6 rounded-xl">
                     <div class="grid grid-cols-12 gap-4 pb-4 border-b-2 border-gray-800 items-stretch">
                         <div class="col-span-12 md:col-span-3 flex flex-col justify-center items-start">
-                            <svg class="h-9 w-auto" viewBox="0 0 520 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="50" cy="60" r="45" stroke="#E2001A" stroke-width="16" fill="none"/>
-                                <circle cx="50" cy="60" r="22" fill="#E2001A"/>
-                                <line x1="95" y1="60" x2="165" y2="60" stroke="#E2001A" stroke-width="14"/>
-                                <circle cx="170" cy="60" r="45" stroke="#E2001A" stroke-width="16" fill="none"/>
-                                <circle cx="170" cy="60" r="22" fill="#E2001A"/>
-                                <line x1="215" y1="60" x2="285" y2="60" stroke="#E2001A" stroke-width="14"/>
-                                <path d="M 285 30 C 330 30, 330 60, 285 60 C 240 60, 240 90, 285 90 C 330 90, 330 90, 330 90" stroke="#E2001A" stroke-width="16" fill="none" stroke-linecap="round"/>
-                                <text x="350" y="45" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#716f6f" letter-spacing="1">AUTOMOTIVE</text>
-                                <text x="350" y="75" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#716f6f" letter-spacing="1">INTERFACE</text>
-                                <text x="350" y="105" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#716f6f" letter-spacing="1">SOLUTIONS</text>
-                            </svg>
+                            <img src="https://raw.githubusercontent.com/aldoaoa/Visualizador-BCS-IDS/3a44ab1685fb192b1420168d4e246059c8261134/BCS%20LOGO.png" alt="BCS Logo" class="h-12 w-auto object-contain">
                         </div>
                         <div class="col-span-12 md:col-span-6 text-center flex flex-col justify-center">
                             <h2 class="text-xl font-black text-gray-900 tracking-tight uppercase">
