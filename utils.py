@@ -156,15 +156,15 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
     json_multi_room = json.dumps(multi_room_data)
     json_limits = json.dumps(limits)
 
-    fecha = metadata.get("fecha", "2025-07-21")
-    auditor = metadata.get("auditor", "Armando Reyes")
-    equipo = metadata.get("equipo", "Medidor de Partículas RION KR-12A")
+    fecha = str(metadata.get("fecha", "2025-07-21"))
+    auditor = str(metadata.get("auditor", "Armando Reyes"))
+    equipo = str(metadata.get("equipo", "Medidor de Partículas RION KR-12A"))
     temp = str(metadata.get("temp", "21.15"))
     rh = str(metadata.get("rh", "48.32"))
-    ch1_name = metadata.get("ch1_name", "0.5 µm")
-    ch2_name = metadata.get("ch2_name", "1.0 µm")
-    ch3_name = metadata.get("ch3_name", "5.0 µm")
-    area_size = metadata.get("area_size", "1662.81 m²")
+    ch1_name = str(metadata.get("ch1_name", "0.5 µm"))
+    ch2_name = str(metadata.get("ch2_name", "1.0 µm"))
+    ch3_name = str(metadata.get("ch3_name", "5.0 µm"))
+    area_size = str(metadata.get("area_size", "1662.81 m²"))
 
     html_template = f"""<!DOCTYPE html>
 <html lang="es">
@@ -342,6 +342,18 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
         let multiRoomData = {json_multi_room};
         let chartInstances = {{}};
 
+        const docMeta = {{
+            fecha: "{fecha}",
+            auditor: "{auditor}",
+            equipo: "{equipo}",
+            temp: "{temp}",
+            rh: "{rh}",
+            ch1_name: "{ch1_name}",
+            ch2_name: "{ch2_name}",
+            ch3_name: "{ch3_name}",
+            area_size: "{area_size}"
+        }};
+
         const defaultPinCoords = [
             {{ x: 12, y: 52 }}, {{ x: 26, y: 22 }}, {{ x: 10, y: 18 }}, {{ x: 22, y: 12 }},
             {{ x: 38, y: 15 }}, {{ x: 88, y: 18 }}, {{ x: 78, y: 28 }}, {{ x: 52, y: 26 }},
@@ -418,14 +430,14 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                     <!-- General Parameters Grid -->
                     <div class="grid grid-cols-12 gap-3 my-3 text-xs">
                         <div class="col-span-12 md:col-span-6 grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="font-semibold text-gray-700">Fecha: <span class="font-normal text-gray-900">${'{fecha}'}</span></div>
-                            <div class="font-semibold text-gray-700">Auditor: <span class="font-normal text-gray-900">${'{auditor}'}</span></div>
+                            <div class="font-semibold text-gray-700">Fecha: <span class="font-normal text-gray-900">${{docMeta.fecha}}</span></div>
+                            <div class="font-semibold text-gray-700">Auditor: <span class="font-normal text-gray-900">${{docMeta.auditor}}</span></div>
                             <div class="font-semibold text-gray-700">Área: <span class="font-bold text-blue-700">${{roomName}}</span></div>
                         </div>
                         <div class="col-span-12 md:col-span-6 grid grid-cols-3 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <div class="font-semibold text-gray-700">Equipo: <span class="font-normal text-gray-900">${'{equipo}'}</span></div>
-                            <div class="font-semibold text-gray-700">Temp: <span class="font-normal text-gray-900">${'{temp}'} °C</span></div>
-                            <div class="font-semibold text-gray-700">Humedad: <span class="font-normal text-gray-900">${'{rh}'} %</span></div>
+                            <div class="font-semibold text-gray-700">Equipo: <span class="font-normal text-gray-900">${{docMeta.equipo}}</span></div>
+                            <div class="font-semibold text-gray-700">Temp: <span class="font-normal text-gray-900">${{docMeta.temp}} °C</span></div>
+                            <div class="font-semibold text-gray-700">Humedad: <span class="font-normal text-gray-900">${{docMeta.rh}} %</span></div>
                         </div>
                     </div>
 
@@ -455,7 +467,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                     <div class="space-y-3">
                         <div class="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
                             <div class="flex justify-between items-center mb-1 px-1">
-                                <span class="font-bold text-xs text-gray-800">Canal: ${'{ch1_name}'} (Límite Máx ISO 8: ${{LIMITS.c05.toLocaleString()}} part/m³)</span>
+                                <span class="font-bold text-xs text-gray-800">Canal: ${{docMeta.ch1_name}} (Límite Máx ISO 8: ${{LIMITS.c05.toLocaleString()}} part/m³)</span>
                                 <span id="badge-05-${{roomIdx}}" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
                             </div>
                             <div class="relative w-full h-36 chart-wrapper"><canvas id="chart05-${{roomIdx}}"></canvas></div>
@@ -463,7 +475,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
 
                         <div class="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
                             <div class="flex justify-between items-center mb-1 px-1">
-                                <span class="font-bold text-xs text-gray-800">Canal: ${'{ch2_name}'} (Límite Máx ISO 8: ${{LIMITS.c1.toLocaleString()}} part/m³)</span>
+                                <span class="font-bold text-xs text-gray-800">Canal: ${{docMeta.ch2_name}} (Límite Máx ISO 8: ${{LIMITS.c1.toLocaleString()}} part/m³)</span>
                                 <span id="badge-1-${{roomIdx}}" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
                             </div>
                             <div class="relative w-full h-36 chart-wrapper"><canvas id="chart1-${{roomIdx}}"></canvas></div>
@@ -471,7 +483,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
 
                         <div class="border border-gray-300 rounded-lg p-2 bg-white shadow-sm">
                             <div class="flex justify-between items-center mb-1 px-1">
-                                <span class="font-bold text-xs text-gray-800">Canal: ${'{ch3_name}'} (Límite Máx ISO 8: ${{LIMITS.c5.toLocaleString()}} part/m³)</span>
+                                <span class="font-bold text-xs text-gray-800">Canal: ${{docMeta.ch3_name}} (Límite Máx ISO 8: ${{LIMITS.c5.toLocaleString()}} part/m³)</span>
                                 <span id="badge-5-${{roomIdx}}" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-green-100 text-green-800">CUMPLE ISO</span>
                             </div>
                             <div class="relative w-full h-36 chart-wrapper"><canvas id="chart5-${{roomIdx}}"></canvas></div>
@@ -504,7 +516,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                             </div>
                             <div class="mb-4">
                                 <label class="block text-xs font-bold text-gray-500 uppercase">Superficie Total</label>
-                                <div class="text-md font-bold text-gray-700">${'{area_size}'}</div>
+                                <div class="text-md font-bold text-gray-700">${{docMeta.area_size}}</div>
                             </div>
 
                             <div class="border-t border-gray-300 pt-4 mt-4">
@@ -553,12 +565,13 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
 
         function buildRoomTableRows(roomName, roomIdx) {{
             const tbody = document.getElementById(`tbody-${{roomIdx}}`);
+            if (!tbody) return;
             tbody.innerHTML = '';
 
             const channels = [
-                {{ key: 'c05', label: '${'{ch1_name}'} (Max ' + LIMITS.c05.toLocaleString() + ')', limit: LIMITS.c05 }},
-                {{ key: 'c1',  label: '${'{ch2_name}'} (Max ' + LIMITS.c1.toLocaleString() + ')',  limit: LIMITS.c1 }},
-                {{ key: 'c5',  label: '${'{ch3_name}'} (Max ' + LIMITS.c5.toLocaleString() + ')',   limit: LIMITS.c5 }}
+                {{ key: 'c05', label: docMeta.ch1_name + ' (Max ' + LIMITS.c05.toLocaleString() + ')', limit: LIMITS.c05 }},
+                {{ key: 'c1',  label: docMeta.ch2_name + ' (Max ' + LIMITS.c1.toLocaleString() + ')',  limit: LIMITS.c1 }},
+                {{ key: 'c5',  label: docMeta.ch3_name + ' (Max ' + LIMITS.c5.toLocaleString() + ')',   limit: LIMITS.c5 }}
             ];
 
             channels.forEach(ch => {{
@@ -694,9 +707,9 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
             container.innerHTML = '';
 
             const channels = [
-                {{ key: 'c05', name: '${'{ch1_name}'}', limitName: 'Max ' + LIMITS.c05.toLocaleString(), limit: LIMITS.c05 }},
-                {{ key: 'c1',  name: '${'{ch2_name}'}', limitName: 'Max ' + LIMITS.c1.toLocaleString(),  limit: LIMITS.c1 }},
-                {{ key: 'c5',  name: '${'{ch3_name}'}', limitName: 'Max ' + LIMITS.c5.toLocaleString(),   limit: LIMITS.c5 }}
+                {{ key: 'c05', name: docMeta.ch1_name, limitName: 'Max ' + LIMITS.c05.toLocaleString(), limit: LIMITS.c05 }},
+                {{ key: 'c1',  name: docMeta.ch2_name, limitName: 'Max ' + LIMITS.c1.toLocaleString(),  limit: LIMITS.c1 }},
+                {{ key: 'c5',  name: docMeta.ch3_name, limitName: 'Max ' + LIMITS.c5.toLocaleString(),   limit: LIMITS.c5 }}
             ];
 
             channels.forEach(ch => {{
@@ -792,9 +805,13 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                 }};
             }};
 
-            chartInstances[`c05-${{roomIdx}}`] = new Chart(document.getElementById(`chart05-${{roomIdx}}`).getContext('2d'), createConfig('c05', LIMITS.c05));
-            chartInstances[`c1-${{roomIdx}}`]  = new Chart(document.getElementById(`chart1-${{roomIdx}}`).getContext('2d'),  createConfig('c1', LIMITS.c1));
-            chartInstances[`c5-${{roomIdx}}`]  = new Chart(document.getElementById(`chart5-${{roomIdx}}`).getContext('2d'),  createConfig('c5', LIMITS.c5));
+            const canvas05 = document.getElementById(`chart05-${{roomIdx}}`);
+            const canvas1 = document.getElementById(`chart1-${{roomIdx}}`);
+            const canvas5 = document.getElementById(`chart5-${{roomIdx}}`);
+
+            if (canvas05) chartInstances[`c05-${{roomIdx}}`] = new Chart(canvas05.getContext('2d'), createConfig('c05', LIMITS.c05));
+            if (canvas1)  chartInstances[`c1-${{roomIdx}}`]  = new Chart(canvas1.getContext('2d'),  createConfig('c1', LIMITS.c1));
+            if (canvas5)  chartInstances[`c5-${{roomIdx}}`]  = new Chart(canvas5.getContext('2d'),  createConfig('c5', LIMITS.c5));
         }}
 
         function updateRoomCharts(roomName, roomIdx) {{
@@ -872,7 +889,6 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                 }}
             }});
 
-            // Highlight button
             for (let r = 1; r <= 6; r++) {{
                 const btn = document.getElementById(`btn-room-${{r}}`);
                 if (btn) {{

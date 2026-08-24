@@ -176,7 +176,7 @@ with tab_report:
         help="Descarga el documento HTML completo con todos los reportes de Cuarto 1 a Cuarto 6 para ver offline o imprimir a PDF."
     )
     
-    components.html(html_content, height=1500, scrolling=True)
+    components.html(html_content, height=2200, scrolling=True)
 
 # Tab 2: Streamlit Interactive Analytics & Data Tables by Room
 with tab_analytics:
