@@ -42,7 +42,7 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
     """
     Reads Excel file and extracts measurement data for 6 rooms (Cuarto 1 to Cuarto 6).
     Expected columns: Time, Temp, RH, CH1 Size, CH2 Size, CH3 Size, CntsCumM3 CH1, CntsCumM3 CH2, CntsCumM3 CH3
-    Each room uses up to 40 rows (20 points x 2 takes). Missing rooms/rows are padded with 0.
+    Each room uses up to 40 rows (20 points x 2 takes). Unmeasured missing points are set to -1 (blank).
     """
     if isinstance(file_source, pd.DataFrame):
         df = file_source.copy()
@@ -80,13 +80,13 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
     ch2_size_val = str(df[col_ch2_size].iloc[0]) if col_ch2_size and col_ch2_size in df and not pd.isna(df[col_ch2_size].iloc[0]) else "1.0"
     ch3_size_val = str(df[col_ch3_size].iloc[0]) if col_ch3_size and col_ch3_size in df and not pd.isna(df[col_ch3_size].iloc[0]) else "5.0"
 
-    v_cnt1_all = pd.to_numeric(df[col_cnt1], errors='coerce').fillna(0).tolist() if col_cnt1 else []
-    v_cnt2_all = pd.to_numeric(df[col_cnt2], errors='coerce').fillna(0).tolist() if col_cnt2 else []
-    v_cnt3_all = pd.to_numeric(df[col_cnt3], errors='coerce').fillna(0).tolist() if col_cnt3 else []
+    # Fill NaN values with -1 to indicate missing/unmeasured points
+    v_cnt1_all = pd.to_numeric(df[col_cnt1], errors='coerce').fillna(-1).tolist() if col_cnt1 else []
+    v_cnt2_all = pd.to_numeric(df[col_cnt2], errors='coerce').fillna(-1).tolist() if col_cnt2 else []
+    v_cnt3_all = pd.to_numeric(df[col_cnt3], errors='coerce').fillna(-1).tolist() if col_cnt3 else []
 
     num_total_rows = len(v_cnt1_all)
 
-    # Process 6 rooms
     multi_room_data = {}
     
     for r in range(1, 7):
@@ -94,40 +94,46 @@ def process_excel_data(file_source, mapping_mode="interleaved"):
         start_idx = (r - 1) * 40
         end_idx = r * 40
 
-        v_cnt1 = v_cnt1_all[start_idx:end_idx]
-        v_cnt2 = v_cnt2_all[start_idx:end_idx]
-        v_cnt3 = v_cnt3_all[start_idx:end_idx]
+        v_cnt1 = v_cnt1_all[start_idx:end_idx] if start_idx < len(v_cnt1_all) else []
+        v_cnt2 = v_cnt2_all[start_idx:end_idx] if start_idx < len(v_cnt2_all) else []
+        v_cnt3 = v_cnt3_all[start_idx:end_idx] if start_idx < len(v_cnt3_all) else []
 
         room_data = {
-            "c05": {"t1": [0]*20, "t2": [0]*20},
-            "c1":  {"t1": [0]*20, "t2": [0]*20},
-            "c5":  {"t1": [0]*20, "t2": [0]*20}
+            "c05": {"t1": [-1]*20, "t2": [-1]*20},
+            "c1":  {"t1": [-1]*20, "t2": [-1]*20},
+            "c5":  {"t1": [-1]*20, "t2": [-1]*20}
         }
 
         channels = [("c05", v_cnt1), ("c1", v_cnt2), ("c5", v_cnt3)]
 
         for key, vals in channels:
-            t1_arr = [0]*20
-            t2_arr = [0]*20
+            t1_arr = [-1]*20
+            t2_arr = [-1]*20
 
             if mapping_mode == "interleaved":
                 for p in range(20):
                     idx1 = p * 2
                     idx2 = p * 2 + 1
                     if idx1 < len(vals):
-                        t1_arr[p] = int(round(vals[idx1]))
+                        v1 = vals[idx1]
+                        t1_arr[p] = int(round(v1)) if v1 >= 0 else -1
                     if idx2 < len(vals):
-                        t2_arr[p] = int(round(vals[idx2]))
+                        v2 = vals[idx2]
+                        t2_arr[p] = int(round(v2)) if v2 >= 0 else -1
                     elif idx1 < len(vals):
-                        t2_arr[p] = int(round(vals[idx1]))
+                        v1 = vals[idx1]
+                        t2_arr[p] = int(round(v1)) if v1 >= 0 else -1
             else:
                 for p in range(20):
                     if p < len(vals):
-                        t1_arr[p] = int(round(vals[p]))
+                        v1 = vals[p]
+                        t1_arr[p] = int(round(v1)) if v1 >= 0 else -1
                     if p + 20 < len(vals):
-                        t2_arr[p] = int(round(vals[p + 20]))
+                        v2 = vals[p + 20]
+                        t2_arr[p] = int(round(v2)) if v2 >= 0 else -1
                     elif p < len(vals):
-                        t2_arr[p] = int(round(vals[p]))
+                        v1 = vals[p]
+                        t2_arr[p] = int(round(v1)) if v1 >= 0 else -1
 
             room_data[key]["t1"] = t1_arr
             room_data[key]["t2"] = t2_arr
@@ -631,17 +637,18 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                 const limit = parseInt(input.dataset.limit, 10);
 
                 const val = roomData[chKey][takeKey][pIdx];
-                if (val !== undefined && val !== null) {{
-                    input.value = val > 0 ? val.toLocaleString('en-US') : (val === 0 ? '' : '');
+                if (val !== undefined && val !== null && val >= 0) {{
+                    input.value = val.toLocaleString('en-US');
                     if (val > limit) {{
                         input.classList.add('out-of-spec');
                         input.classList.remove('in-spec');
-                    }} else if (val > 0) {{
+                    }} else {{
                         input.classList.remove('out-of-spec');
                         input.classList.add('in-spec');
-                    }} else {{
-                        input.classList.remove('out-of-spec', 'in-spec');
                     }}
+                }} else {{
+                    input.value = '';
+                    input.classList.remove('out-of-spec', 'in-spec');
                 }}
             }});
 
@@ -659,7 +666,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
             const pIdx = parseInt(inputEl.dataset.point, 10);
             const limit = parseInt(inputEl.dataset.limit, 10);
 
-            if (!isNaN(num)) {{
+            if (!isNaN(num) && num >= 0) {{
                 multiRoomData[roomName][chKey][takeKey][pIdx] = num;
                 inputEl.value = num.toLocaleString('en-US');
 
@@ -671,7 +678,8 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                     inputEl.classList.add('in-spec');
                 }}
             }} else {{
-                multiRoomData[roomName][chKey][takeKey][pIdx] = 0;
+                multiRoomData[roomName][chKey][takeKey][pIdx] = -1;
+                inputEl.value = '';
                 inputEl.classList.remove('out-of-spec', 'in-spec');
             }}
 
@@ -685,14 +693,14 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
         }}
 
         function getRoomChannelAvg(roomName, chKey) {{
-            const t1 = multiRoomData[roomName][chKey].t1;
-            const t2 = multiRoomData[roomName][chKey].t2;
+            const rawT1 = multiRoomData[roomName][chKey].t1.filter(v => v >= 0);
+            const rawT2 = multiRoomData[roomName][chKey].t2.filter(v => v >= 0);
 
-            const sumT1 = t1.reduce((a, b) => a + b, 0);
-            const sumT2 = t2.reduce((a, b) => a + b, 0);
+            const sumT1 = rawT1.reduce((a, b) => a + b, 0);
+            const sumT2 = rawT2.reduce((a, b) => a + b, 0);
 
-            const countT1 = t1.filter(v => v > 0).length || 1;
-            const countT2 = t2.filter(v => v > 0).length || 1;
+            const countT1 = rawT1.length || 1;
+            const countT2 = rawT2.length || 1;
 
             const avgT1 = Math.round(sumT1 / countT1);
             const avgT2 = Math.round(sumT2 / countT2);
@@ -764,7 +772,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                         datasets: [
                             {{
                                 label: 'Toma 1',
-                                data: multiRoomData[roomName][chKey].t1,
+                                data: multiRoomData[roomName][chKey].t1.map(v => v >= 0 ? v : null),
                                 borderColor: '#0284c7',
                                 backgroundColor: 'rgba(2, 132, 199, 0.1)',
                                 borderWidth: 2,
@@ -773,7 +781,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
                             }},
                             {{
                                 label: 'Toma 2',
-                                data: multiRoomData[roomName][chKey].t2,
+                                data: multiRoomData[roomName][chKey].t2.map(v => v >= 0 ? v : null),
                                 borderColor: '#0d9488',
                                 backgroundColor: 'rgba(13, 148, 136, 0.1)',
                                 borderWidth: 2,
@@ -816,16 +824,16 @@ def generate_full_html_report(metadata, multi_room_data, limits=None):
 
         function updateRoomCharts(roomName, roomIdx) {{
             if (!chartInstances[`c05-${{roomIdx}}`]) return;
-            chartInstances[`c05-${{roomIdx}}`].data.datasets[0].data = multiRoomData[roomName].c05.t1;
-            chartInstances[`c05-${{roomIdx}}`].data.datasets[1].data = multiRoomData[roomName].c05.t2;
+            chartInstances[`c05-${{roomIdx}}`].data.datasets[0].data = multiRoomData[roomName].c05.t1.map(v => v >= 0 ? v : null);
+            chartInstances[`c05-${{roomIdx}}`].data.datasets[1].data = multiRoomData[roomName].c05.t2.map(v => v >= 0 ? v : null);
             chartInstances[`c05-${{roomIdx}}`].update();
 
-            chartInstances[`c1-${{roomIdx}}`].data.datasets[0].data = multiRoomData[roomName].c1.t1;
-            chartInstances[`c1-${{roomIdx}}`].data.datasets[1].data = multiRoomData[roomName].c1.t2;
+            chartInstances[`c1-${{roomIdx}}`].data.datasets[0].data = multiRoomData[roomName].c1.t1.map(v => v >= 0 ? v : null);
+            chartInstances[`c1-${{roomIdx}}`].data.datasets[1].data = multiRoomData[roomName].c1.t2.map(v => v >= 0 ? v : null);
             chartInstances[`c1-${{roomIdx}}`].update();
 
-            chartInstances[`c5-${{roomIdx}}`].data.datasets[0].data = multiRoomData[roomName].c5.t1;
-            chartInstances[`c5-${{roomIdx}}`].data.datasets[1].data = multiRoomData[roomName].c5.t2;
+            chartInstances[`c5-${{roomIdx}}`].data.datasets[0].data = multiRoomData[roomName].c5.t1.map(v => v >= 0 ? v : null);
+            chartInstances[`c5-${{roomIdx}}`].data.datasets[1].data = multiRoomData[roomName].c5.t2.map(v => v >= 0 ? v : null);
             chartInstances[`c5-${{roomIdx}}`].update();
         }}
 
