@@ -534,7 +534,7 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                             <h2 class="text-lg font-black text-gray-900 tracking-tight uppercase">
                                 REPORTE DE MEDICIÓN DE PARTÍCULAS - ${{roomName.toUpperCase()}}
                             </h2>
-                            <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SISTEMA DE CONTROL DE CALIDAD AMBIENTAL - SALA BLANCA ISO 8</p>
+                            <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SISTEMA DE CONTROL DE CALIDAD AMBIENTAL - CUARTO LIMPIO ISO 8</p>
                         </div>
                         <div class="col-span-12 md:col-span-3 text-[9px] border border-gray-400 rounded p-1 bg-gray-50 flex flex-col justify-between">
                             <div class="flex justify-between border-b border-gray-300 pb-0.5">
@@ -1280,7 +1280,7 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
                 <h2 class="text-lg font-black text-gray-900 tracking-tight uppercase">
                     REPORTE DE MEDICIÓN DE PARTÍCULAS - {room_name_clean}
                 </h2>
-                <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SISTEMA DE CONTROL DE CALIDAD AMBIENTAL - SALA BLANCA ISO 8</p>
+                <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SISTEMA DE CONTROL DE CALIDAD AMBIENTAL - CUARTO LIMPIO ISO 8</p>
             </div>
             <div class="col-span-12 md:col-span-3 text-[9px] border border-gray-400 rounded p-1 bg-gray-50 flex flex-col justify-between">
                 <div class="flex justify-between border-b border-gray-300 pb-0.5">

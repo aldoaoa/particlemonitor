@@ -154,7 +154,7 @@ doc_metadata = {
 col_header, col_logo = st.columns([4, 1])
 with col_header:
     st.title("Reporte de Medición de Contaminantes - Cuartos 1 al 6")
-    st.caption(f"Sistema de Control de Calidad Ambiental y Salas Blancas ISO 14644-1 ({iso_class})")
+    st.caption(f"Sistema de Control de Calidad Ambiental y Cuartos Limpios ISO 14644-1 ({iso_class})")
 with col_logo:
     st.markdown("<h3 style='color:#E2001A; text-align:right;'>BCS</h3>", unsafe_allow_html=True)
 
