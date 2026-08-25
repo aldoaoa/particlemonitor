@@ -539,11 +539,11 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                         <div class="col-span-12 md:col-span-3 text-[9px] border border-gray-400 rounded p-1 bg-gray-50 flex flex-col justify-between">
                             <div class="flex justify-between border-b border-gray-300 pb-0.5">
                                 <span class="font-bold text-gray-600">Código Formato:</span>
-                                <span class="font-mono text-gray-800">FOR-CAL-042</span>
+                                <span class="font-mono text-gray-800">B_020_4_002_QRO_SP</span>
                             </div>
                             <div class="flex justify-between border-b border-gray-300 py-0.5">
                                 <span class="font-bold text-gray-600">Revisión:</span>
-                                <span class="font-mono text-gray-800">03</span>
+                                <span class="font-mono text-gray-800">A</span>
                             </div>
                             <div class="flex justify-between pt-0.5">
                                 <span class="font-bold text-gray-600">Página:</span>
@@ -1285,11 +1285,11 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
             <div class="col-span-12 md:col-span-3 text-[9px] border border-gray-400 rounded p-1 bg-gray-50 flex flex-col justify-between">
                 <div class="flex justify-between border-b border-gray-300 pb-0.5">
                     <span class="font-bold text-gray-600">Código Formato:</span>
-                    <span class="font-mono text-gray-800">FOR-CAL-042</span>
+                    <span class="font-mono text-gray-800">B_020_4_002_QRO_SP</span>
                 </div>
                 <div class="flex justify-between border-b border-gray-300 py-0.5">
                     <span class="font-bold text-gray-600">Revisión:</span>
-                    <span class="font-mono text-gray-800">03</span>
+                    <span class="font-mono text-gray-800">A</span>
                 </div>
                 <div class="flex justify-between pt-0.5">
                     <span class="font-bold text-gray-600">Página:</span>
