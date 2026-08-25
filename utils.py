@@ -7,6 +7,7 @@ import os
 import base64
 import csv
 import struct
+import random
 
 # Standard ISO 14644-1 limits in particles per m3
 # ISO 8: 0.5um: 3,520,000 | 1.0um: 832,000 | 5.0um: 29,300
@@ -27,6 +28,74 @@ DEFAULT_LIMITS = {
     "c1": 832000,
     "c5": 29300
 }
+
+def generate_random_iso_data(iso_class="ISO 8", limits=None, num_rooms=6, points_per_room=20):
+    """
+    Generates realistic, acceptable particle measurement data tailored to the specified ISO class limits.
+    All generated values are strictly compliant with ISO maximum thresholds and feature natural sensor variance.
+    """
+    if limits is None:
+        limits = ISO_LIMITS_M3.get(iso_class, ISO_LIMITS_M3["ISO 8"])
+
+    lim_c05 = int(limits.get("0.5", limits.get("c05", 3520000)))
+    lim_c1  = int(limits.get("1.0", limits.get("c1", 832000)))
+    lim_c5  = int(limits.get("5.0", limits.get("c5", 29300)))
+
+    multi_room_data = {}
+
+    for r in range(1, num_rooms + 1):
+        room_name = f"Cuarto {r}"
+        
+        # Base concentration level for this room (15% to 40% of max limit)
+        base_c05 = lim_c05 * random.uniform(0.15, 0.40) if lim_c05 > 0 else 0
+        base_c1  = min(lim_c1 * random.uniform(0.15, 0.35) if lim_c1 > 0 else 0, base_c05 * 0.25)
+        base_c5  = min(lim_c5 * random.uniform(0.08, 0.30) if lim_c5 > 0 else 0, base_c1 * 0.15)
+
+        t1_c05, t2_c05 = [], []
+        t1_c1,  t2_c1  = [], []
+        t1_c5,  t2_c5  = [], []
+
+        for p in range(20):
+            if p < points_per_room:
+                pt_factor = random.uniform(0.80, 1.20)
+                
+                v05_1 = int(round(base_c05 * pt_factor * random.uniform(0.95, 1.05)))
+                v05_2 = int(round(base_c05 * pt_factor * random.uniform(0.95, 1.05)))
+
+                v1_1  = int(round(base_c1 * pt_factor * random.uniform(0.92, 1.08)))
+                v1_2  = int(round(base_c1 * pt_factor * random.uniform(0.92, 1.08)))
+
+                v5_1  = int(round(base_c5 * pt_factor * random.uniform(0.85, 1.15)))
+                v5_2  = int(round(base_c5 * pt_factor * random.uniform(0.85, 1.15)))
+
+                # Strictly cap below max ISO limits
+                v05_1 = min(max(0, v05_1), max(0, lim_c05 - 1)) if lim_c05 > 0 else 0
+                v05_2 = min(max(0, v05_2), max(0, lim_c05 - 1)) if lim_c05 > 0 else 0
+
+                v1_1  = min(max(0, v1_1), max(0, lim_c1 - 1)) if lim_c1 > 0 else 0
+                v1_2  = min(max(0, v1_2), max(0, lim_c1 - 1)) if lim_c1 > 0 else 0
+
+                v5_1  = min(max(0, v5_1), max(0, lim_c5 - 1)) if lim_c5 > 0 else 0
+                v5_2  = min(max(0, v5_2), max(0, lim_c5 - 1)) if lim_c5 > 0 else 0
+            else:
+                v05_1, v05_2 = -1, -1
+                v1_1,  v1_2  = -1, -1
+                v5_1,  v5_2  = -1, -1
+
+            t1_c05.append(v05_1)
+            t2_c05.append(v05_2)
+            t1_c1.append(v1_1)
+            t2_c1.append(v1_2)
+            t1_c5.append(v5_1)
+            t2_c5.append(v5_2)
+
+        multi_room_data[room_name] = {
+            "c05": {"t1": t1_c05, "t2": t2_c05},
+            "c1":  {"t1": t1_c1,  "t2": t2_c1},
+            "c5":  {"t1": t1_c5,  "t2": t2_c5}
+        }
+
+    return multi_room_data
 
 def clean_column_names(df):
     """Normalize dataframe column names."""
@@ -435,6 +504,9 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            <button onclick="fillRandomCompliantData()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-2">
+                <i class="fa-solid fa-dice text-sm"></i> Generar Datos Aleatorios Válidos (ISO)
+            </button>
             <button onclick="window.print()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-2">
                 <i class="fa-solid fa-file-pdf text-sm"></i> Imprimir / Exportar PDF Vertical
             </button>
@@ -449,6 +521,42 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
     <script>
         const LIMITS = {json_limits};
         let multiRoomData = {json_multi_room};
+
+        function fillRandomCompliantData() {{
+            for (let r = 1; r <= 6; r++) {{
+                const roomName = `Cuarto ${{r}}`;
+                const lim05 = LIMITS.c05 || 3520000;
+                const lim1  = LIMITS.c1  || 832000;
+                const lim5  = LIMITS.c5  || 29300;
+
+                const base05 = lim05 * (0.15 + Math.random() * 0.25);
+                const base1  = Math.min(lim1 * (0.15 + Math.random() * 0.20), base05 * 0.25);
+                const base5  = Math.min(lim5 * (0.08 + Math.random() * 0.20), base1 * 0.15);
+
+                for (let p = 0; p < 20; p++) {{
+                    const ptFactor = 0.80 + Math.random() * 0.40;
+                    
+                    const v05_1 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
+                    const v05_2 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
+
+                    const v1_1  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
+                    const v1_2  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
+
+                    const v5_1  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
+                    const v5_2  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
+
+                    multiRoomData[roomName].c05.t1[p] = Math.min(v05_1, lim05 > 0 ? lim05 - 1 : 0);
+                    multiRoomData[roomName].c05.t2[p] = Math.min(v05_2, lim05 > 0 ? lim05 - 1 : 0);
+
+                    multiRoomData[roomName].c1.t1[p]  = Math.min(v1_1, lim1 > 0 ? lim1 - 1 : 0);
+                    multiRoomData[roomName].c1.t2[p]  = Math.min(v1_2, lim1 > 0 ? lim1 - 1 : 0);
+
+                    multiRoomData[roomName].c5.t1[p]  = Math.min(v5_1, lim5 > 0 ? lim5 - 1 : 0);
+                    multiRoomData[roomName].c5.t2[p]  = Math.min(v5_2, lim5 > 0 ? lim5 - 1 : 0);
+                }}
+                fillRoomInputs(roomName, r);
+            }}
+        }}
         const roomMaps = {json_room_maps};
         let chartInstances = {{}};
 
@@ -1264,6 +1372,9 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            <button onclick="fillSingleRandomCompliantData()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-2">
+                <i class="fa-solid fa-dice text-sm"></i> Generar Datos Aleatorios Válidos (ISO)
+            </button>
             <button onclick="window.print()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-2">
                 <i class="fa-solid fa-file-pdf text-sm"></i> Imprimir Reporte de {room_name} (PDF Vertical)
             </button>
@@ -1412,6 +1523,39 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
         const roomMap = {json_room_map};
         const numPoints = {num_points};
         let chartInstances = {{}};
+
+        function fillSingleRandomCompliantData() {{
+            const lim05 = LIMITS.c05 || 3520000;
+            const lim1  = LIMITS.c1  || 832000;
+            const lim5  = LIMITS.c5  || 29300;
+
+            const base05 = lim05 * (0.15 + Math.random() * 0.25);
+            const base1  = Math.min(lim1 * (0.15 + Math.random() * 0.20), base05 * 0.25);
+            const base5  = Math.min(lim5 * (0.08 + Math.random() * 0.20), base1 * 0.15);
+
+            for (let p = 0; p < numPoints; p++) {{
+                const ptFactor = 0.80 + Math.random() * 0.40;
+                
+                const v05_1 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
+                const v05_2 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
+
+                const v1_1  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
+                const v1_2  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
+
+                const v5_1  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
+                const v5_2  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
+
+                roomData.c05.t1[p] = Math.min(v05_1, lim05 > 0 ? lim05 - 1 : 0);
+                roomData.c05.t2[p] = Math.min(v05_2, lim05 > 0 ? lim05 - 1 : 0);
+
+                roomData.c1.t1[p]  = Math.min(v1_1, lim1 > 0 ? lim1 - 1 : 0);
+                roomData.c1.t2[p]  = Math.min(v1_2, lim1 > 0 ? lim1 - 1 : 0);
+
+                roomData.c5.t1[p]  = Math.min(v5_1, lim5 > 0 ? lim5 - 1 : 0);
+                roomData.c5.t2[p]  = Math.min(v5_2, lim5 > 0 ? lim5 - 1 : 0);
+            }}
+            fillSingleInputs();
+        }}
 
         const docMeta = {{
             fecha: "{fecha}",

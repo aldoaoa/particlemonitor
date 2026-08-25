@@ -10,6 +10,7 @@ from utils import (
     generate_full_html_report,
     generate_single_room_html_report,
     load_room_maps_and_coordinates,
+    generate_random_iso_data,
     ISO_LIMITS_M3,
     DEFAULT_LIMITS
 )
@@ -169,9 +170,16 @@ tab_report, tab_single_room, tab_analytics, tab_guide = st.tabs([
 
 # Tab 1: Multi-room HTML Report Component
 with tab_report:
-    st.subheader("Reporte General Completo (Cuartos 1 a 6)")
-    
-    html_content = generate_full_html_report(doc_metadata, multi_room_data, limits=custom_limits, room_maps=room_maps)
+    col_t1_1, col_t1_2 = st.columns([3, 1])
+    with col_t1_1:
+        st.subheader("Reporte General Completo (Cuartos 1 a 6)")
+    with col_t1_2:
+        if st.button("🎲 Generar Datos Aleatorios (Cumplimiento ISO)", key="btn_gen_multi", help="Genera mediciones aleatorias realistas que cumplen con los límites de la clasificación ISO seleccionada."):
+            st.session_state["multi_room_data_override"] = generate_random_iso_data(iso_class, custom_limits, 6, 20)
+            st.rerun()
+
+    active_multi_data = st.session_state.get("multi_room_data_override", multi_room_data)
+    html_content = generate_full_html_report(doc_metadata, active_multi_data, limits=custom_limits, room_maps=room_maps)
     
     st.download_button(
         label="💾 Descargar Reporte Completo 6 Cuartos (HTML Standalone)",
@@ -185,9 +193,6 @@ with tab_report:
 
 # Tab 2: Single Room Custom Report Component
 with tab_single_room:
-    st.subheader("🎯 Reporte de una Sola Área / Cuarto (Personalizable)")
-    st.markdown("Selecciona una planta/cuarto de las 6 precargadas y especifica la cantidad de puntos de medición requeridos.")
-
     col_sr1, col_sr2 = st.columns([2, 2])
     with col_sr1:
         selected_single_room = st.selectbox(
@@ -206,12 +211,18 @@ with tab_single_room:
             help="Selecciona cuántas mediciones/puntos se incluirán en el reporte."
         )
 
-    single_room_data = multi_room_data.get(selected_single_room, {
+    if st.button("🎲 Generar Datos Aleatorios (Área Actual)", key="btn_gen_single", help="Genera mediciones aleatorias simuladas válidas ante ISO para este cuarto específico."):
+        rand_multi = generate_random_iso_data(iso_class, custom_limits, 6, 20)
+        st.session_state[f"single_room_override_{selected_single_room}"] = rand_multi.get(selected_single_room)
+        st.rerun()
+
+    default_room_data = multi_room_data.get(selected_single_room, {
         "c05": {"t1": [-1]*20, "t2": [-1]*20},
         "c1":  {"t1": [-1]*20, "t2": [-1]*20},
         "c5":  {"t1": [-1]*20, "t2": [-1]*20}
     })
 
+    single_room_data = st.session_state.get(f"single_room_override_{selected_single_room}", default_room_data)
     single_room_map = room_maps.get(selected_single_room, {})
 
     single_html_content = generate_single_room_html_report(
