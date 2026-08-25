@@ -31,8 +31,9 @@ DEFAULT_LIMITS = {
 
 def generate_random_iso_data(iso_class="ISO 8", limits=None, num_rooms=6, points_per_room=20):
     """
-    Generates realistic, acceptable particle measurement data tailored to the specified ISO class limits.
-    All generated values are strictly compliant with ISO maximum thresholds and feature natural sensor variance.
+    Generates realistic particle measurement data tailored to the specified ISO class limits.
+    Includes natural background variance plus realistic localized particle spikes (above room average)
+    every few points while strictly respecting maximum ISO thresholds.
     """
     if limits is None:
         limits = ISO_LIMITS_M3.get(iso_class, ISO_LIMITS_M3["ISO 8"])
@@ -46,10 +47,14 @@ def generate_random_iso_data(iso_class="ISO 8", limits=None, num_rooms=6, points
     for r in range(1, num_rooms + 1):
         room_name = f"Cuarto {r}"
         
-        # Base concentration level for this room (15% to 40% of max limit)
-        base_c05 = lim_c05 * random.uniform(0.15, 0.40) if lim_c05 > 0 else 0
-        base_c1  = min(lim_c1 * random.uniform(0.15, 0.35) if lim_c1 > 0 else 0, base_c05 * 0.25)
-        base_c5  = min(lim_c5 * random.uniform(0.08, 0.30) if lim_c5 > 0 else 0, base_c1 * 0.15)
+        # Base concentration level for this room (12% to 28% of max limit)
+        base_c05 = lim_c05 * random.uniform(0.12, 0.28) if lim_c05 > 0 else 0
+        base_c1  = min(lim_c1 * random.uniform(0.12, 0.25) if lim_c1 > 0 else 0, base_c05 * 0.22)
+        base_c5  = min(lim_c5 * random.uniform(0.06, 0.20) if lim_c5 > 0 else 0, base_c1 * 0.12)
+
+        # Select 3-5 random point indices to have significant spikes/peaks above average
+        num_spikes = min(points_per_room, random.randint(3, 5))
+        spike_indices = set(random.sample(range(points_per_room), num_spikes))
 
         t1_c05, t2_c05 = [], []
         t1_c1,  t2_c1  = [], []
@@ -57,16 +62,21 @@ def generate_random_iso_data(iso_class="ISO 8", limits=None, num_rooms=6, points
 
         for p in range(20):
             if p < points_per_room:
-                pt_factor = random.uniform(0.80, 1.20)
+                if p in spike_indices:
+                    # Spike point: 1.8x to 2.75x of room base average
+                    pt_factor = random.uniform(1.80, 2.75)
+                else:
+                    # Regular point: standard background fluctuation (0.70x to 1.15x)
+                    pt_factor = random.uniform(0.70, 1.15)
                 
-                v05_1 = int(round(base_c05 * pt_factor * random.uniform(0.95, 1.05)))
-                v05_2 = int(round(base_c05 * pt_factor * random.uniform(0.95, 1.05)))
+                v05_1 = int(round(base_c05 * pt_factor * random.uniform(0.95, 1.10)))
+                v05_2 = int(round(base_c05 * pt_factor * random.uniform(0.90, 1.05)))
 
-                v1_1  = int(round(base_c1 * pt_factor * random.uniform(0.92, 1.08)))
-                v1_2  = int(round(base_c1 * pt_factor * random.uniform(0.92, 1.08)))
+                v1_1  = int(round(base_c1 * pt_factor * random.uniform(0.92, 1.12)))
+                v1_2  = int(round(base_c1 * pt_factor * random.uniform(0.88, 1.08)))
 
-                v5_1  = int(round(base_c5 * pt_factor * random.uniform(0.85, 1.15)))
-                v5_2  = int(round(base_c5 * pt_factor * random.uniform(0.85, 1.15)))
+                v5_1  = int(round(base_c5 * pt_factor * random.uniform(0.85, 1.25)))
+                v5_2  = int(round(base_c5 * pt_factor * random.uniform(0.80, 1.15)))
 
                 # Strictly cap below max ISO limits
                 v05_1 = min(max(0, v05_1), max(0, lim_c05 - 1)) if lim_c05 > 0 else 0
@@ -529,21 +539,28 @@ def generate_full_html_report(metadata, multi_room_data, limits=None, room_maps=
                 const lim1  = LIMITS.c1  || 832000;
                 const lim5  = LIMITS.c5  || 29300;
 
-                const base05 = lim05 * (0.15 + Math.random() * 0.25);
-                const base1  = Math.min(lim1 * (0.15 + Math.random() * 0.20), base05 * 0.25);
-                const base5  = Math.min(lim5 * (0.08 + Math.random() * 0.20), base1 * 0.15);
+                const base05 = lim05 * (0.12 + Math.random() * 0.16);
+                const base1  = Math.min(lim1 * (0.12 + Math.random() * 0.14), base05 * 0.22);
+                const base5  = Math.min(lim5 * (0.06 + Math.random() * 0.14), base1 * 0.12);
+
+                const spikeIndices = new Set();
+                const numSpikes = 3 + Math.floor(Math.random() * 3);
+                while (spikeIndices.size < numSpikes) {{
+                    spikeIndices.add(Math.floor(Math.random() * 20));
+                }}
 
                 for (let p = 0; p < 20; p++) {{
-                    const ptFactor = 0.80 + Math.random() * 0.40;
+                    const isSpike = spikeIndices.has(p);
+                    const ptFactor = isSpike ? (1.80 + Math.random() * 0.95) : (0.70 + Math.random() * 0.45);
                     
-                    const v05_1 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
-                    const v05_2 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
+                    const v05_1 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.15));
+                    const v05_2 = Math.round(base05 * ptFactor * (0.90 + Math.random() * 0.15));
 
-                    const v1_1  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
-                    const v1_2  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
+                    const v1_1  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.20));
+                    const v1_2  = Math.round(base1 * ptFactor * (0.88 + Math.random() * 0.20));
 
-                    const v5_1  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
-                    const v5_2  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
+                    const v5_1  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.35));
+                    const v5_2  = Math.round(base5 * ptFactor * (0.80 + Math.random() * 0.35));
 
                     multiRoomData[roomName].c05.t1[p] = Math.min(v05_1, lim05 > 0 ? lim05 - 1 : 0);
                     multiRoomData[roomName].c05.t2[p] = Math.min(v05_2, lim05 > 0 ? lim05 - 1 : 0);
@@ -1529,21 +1546,28 @@ def generate_single_room_html_report(metadata, room_name, room_data, num_points=
             const lim1  = LIMITS.c1  || 832000;
             const lim5  = LIMITS.c5  || 29300;
 
-            const base05 = lim05 * (0.15 + Math.random() * 0.25);
-            const base1  = Math.min(lim1 * (0.15 + Math.random() * 0.20), base05 * 0.25);
-            const base5  = Math.min(lim5 * (0.08 + Math.random() * 0.20), base1 * 0.15);
+            const base05 = lim05 * (0.12 + Math.random() * 0.16);
+            const base1  = Math.min(lim1 * (0.12 + Math.random() * 0.14), base05 * 0.22);
+            const base5  = Math.min(lim5 * (0.06 + Math.random() * 0.14), base1 * 0.12);
+
+            const spikeIndices = new Set();
+            const numSpikes = Math.max(1, Math.min(numPoints, 2 + Math.floor(Math.random() * 3)));
+            while (spikeIndices.size < numSpikes) {{
+                spikeIndices.add(Math.floor(Math.random() * numPoints));
+            }}
 
             for (let p = 0; p < numPoints; p++) {{
-                const ptFactor = 0.80 + Math.random() * 0.40;
+                const isSpike = spikeIndices.has(p);
+                const ptFactor = isSpike ? (1.80 + Math.random() * 0.95) : (0.70 + Math.random() * 0.45);
                 
-                const v05_1 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
-                const v05_2 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.10));
+                const v05_1 = Math.round(base05 * ptFactor * (0.95 + Math.random() * 0.15));
+                const v05_2 = Math.round(base05 * ptFactor * (0.90 + Math.random() * 0.15));
 
-                const v1_1  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
-                const v1_2  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.16));
+                const v1_1  = Math.round(base1 * ptFactor * (0.92 + Math.random() * 0.20));
+                const v1_2  = Math.round(base1 * ptFactor * (0.88 + Math.random() * 0.20));
 
-                const v5_1  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
-                const v5_2  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.30));
+                const v5_1  = Math.round(base5 * ptFactor * (0.85 + Math.random() * 0.35));
+                const v5_2  = Math.round(base5 * ptFactor * (0.80 + Math.random() * 0.35));
 
                 roomData.c05.t1[p] = Math.min(v05_1, lim05 > 0 ? lim05 - 1 : 0);
                 roomData.c05.t2[p] = Math.min(v05_2, lim05 > 0 ? lim05 - 1 : 0);
